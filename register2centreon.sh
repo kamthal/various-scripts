@@ -1,12 +1,15 @@
 #!/bin/bash
 
-DEBUG=
+DEBUG=1
 VERBOSE=1
 #LOG_FILE="${0%.sh}.log"
 LOG_FILE="register2centreon.log"
 
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
+}
+function debug-var() {
+        debug "$(declare -p $1)"
 }
 
 function verbose() {
@@ -55,7 +58,7 @@ function determine-distro() {
         verbose "System is Debian-based"
         REG_INSTALL_CMD='apt-get'
         REG_OS_FAMILY=debian
-        debug "$(declare -p REG_INSTALL_CMD)"
+        debug-var REG_INSTALL_CMD
     elif [[ -f /etc/redhat-release ]] ; then
         verbose "System is RHEL-based"
         REG_INSTALL_CMD='yum'
@@ -73,6 +76,8 @@ REG_MONITORING_PROTOCOL=SNMP
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=public
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd', [el7]='net-snmp', [el8]='net-snmp', [el9]='net-snmp', [rhel]='net-snmp')
+debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
+
 REG_INSTALL_CMD=
 
 while (( $# > 0 )) ; do
