@@ -71,11 +71,33 @@ function determine-distro() {
 function install() {
     try ${REG_INSTALL_CMD} install -y $*
 }
+function configure-snmp() {
+    cat >/etc/snmp/snmpd.conf <<EOF
+com2sec notConfigUser  ${REG_CENTREON_POLLER:-$REG_CENTREON_POLLER}       ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}
+group   notConfigGroup v2c           notConfigUser
+access notConfigGroup "" any noauth exact centreon none none
+syslocation Unknown (edit /etc/snmp/snmpd.conf)
+syscontact Root <root@localhost> (configure /etc/snmp/snmp.local.conf)
+access  notConfigGroup ""      any       noauth    exact  systemview none none
+dontLogTCPWrappersConnects yes
+view centreon included .1.3.6.1
+view    systemview    included   .1.3.6.1.2.1.1
+view    systemview    included   .1.3.6.1.2.1.25.1.1
+includeAllDisks 5%
+EOF
+    systemctl restart "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
+}
+
 REG_OS_FAMILY=
+REG_CENTREON_CENTRAL_URL=http://192.168.58.121
+REG_CENTREON_CENTRAL_LOGIN=admin
+REG_CENTREON_CENTRAL_PASSWORD=centreon
+REG_CENTREON_POLLER=192.168.58.121
 REG_MONITORING_PROTOCOL=SNMP
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=public
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
-REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd', [el7]='net-snmp', [el8]='net-snmp', [el9]='net-snmp', [rhel]='net-snmp')
+REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd', [rhel]='net-snmp')
+REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd', [rhel]='snmpd')
 debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 
 REG_INSTALL_CMD=
