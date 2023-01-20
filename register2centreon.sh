@@ -2,7 +2,8 @@
 
 DEBUG=
 VERBOSE=
-LOG_FILE="${0%.sh}.log"
+#LOG_FILE="${0%.sh}.log"
+LOG_FILE="register2centreon.log"
 
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
