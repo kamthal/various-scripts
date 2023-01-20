@@ -28,7 +28,6 @@ function show-help() {
               Display help text and exit.  No other output is generated.
        --debug
               Enable debug messages
-
        --verbose
               Enable verbose messages
 EOH
@@ -55,10 +54,12 @@ function determine-distro() {
     if [[ -f /etc/debian_version ]] ; then
         verbose "System is Debian-based"
         REG_INSTALL_CMD='apt-get'
+        REG_OS_FAMILY=debian
         debug "$(declare -p REG_INSTALL_CMD)"
     elif [[ -f /etc/redhat-release ]] ; then
         verbose "System is RHEL-based"
-        REG_INSTALL_CMD='dnf'
+        REG_INSTALL_CMD='yum'
+        REG_OS_FAMILY=rhel
     else
         fatal "System is unsupported"
     fi
@@ -67,7 +68,7 @@ function determine-distro() {
 function install() {
     try ${REG_INSTALL_CMD} install -y $*
 }
-
+REG_OS_FAMILY=
 REG_MONITORING_PROTOCOL=SNMP
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=public
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
@@ -101,6 +102,7 @@ done
 # Determine install command
 determine-distro
 # install snmpd
+install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # configure snmpd
 # * community
 # * authorized ip
