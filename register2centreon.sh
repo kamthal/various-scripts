@@ -151,6 +151,7 @@ curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token:
 IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
 debug-var REG_DISKS_LIST
 # curl centreon config services/processes
+IFS=$'\n' REG_SERVICES_LIST=($(systemctl -t service --no-pager --state=enabled --no-legend list-unit-files | awk '{print  $1}'))
 # curl centreon config interfaces
 # curl centreon config 
 # curl centreon config 
