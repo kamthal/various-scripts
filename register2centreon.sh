@@ -86,10 +86,12 @@ view    systemview    included   .1.3.6.1.2.1.25.1.1
 includeAllDisks 5%
 EOF
     systemctl restart "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
+    systemctl enable "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
 }
 
 REG_OS_FAMILY=
-REG_CENTREON_CENTRAL_URL=http://192.168.58.121
+REG_CENTREON_CENTRAL_IP=192.168.58.121
+REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}"
 REG_CENTREON_CENTRAL_LOGIN=admin
 REG_CENTREON_CENTRAL_PASSWORD=centreon
 REG_CENTREON_POLLER=192.168.58.121
@@ -131,12 +133,14 @@ determine-distro
 # install snmpd
 install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # configure snmpd
-configure-snmp
 # * community
 # * authorized ip
 # restart snmpd
 # enable snmpd
+configure-snmp
 # curl centreon authentication
+TOKEN="$(curl -s -d 'username=${REG_CENTREON_CENTRAL_LOGIN}&password=${REG_CENTREON_CENTRAL_PASSWORD}' 'http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
+debug-var TOKEN
 # curl centreon config host
 # curl centreon config disks
 # curl centreon config services/processes
