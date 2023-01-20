@@ -148,6 +148,8 @@ REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 
 # curl centreon config disks
+IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
+debug-var REG_DISKS_LIST
 # curl centreon config services/processes
 # curl centreon config interfaces
 # curl centreon config 
