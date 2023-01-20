@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DEBUG=
-VERBOSE=
+VERBOSE=1
 #LOG_FILE="${0%.sh}.log"
 LOG_FILE="register2centreon.log"
 
