@@ -131,6 +131,7 @@ determine-distro
 # install snmpd
 install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # configure snmpd
+configure-snmp
 # * community
 # * authorized ip
 # restart snmpd
