@@ -152,6 +152,7 @@ IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-ty
 debug-var REG_DISKS_LIST
 # curl centreon config services/processes
 IFS=$'\n' REG_SERVICES_LIST=($(systemctl -t service --no-pager --state=enabled --no-legend list-unit-files | awk '{print  $1}'))
+debug-var REG_SERVICES_LIST
 # curl centreon config interfaces
 # curl centreon config 
 # curl centreon config 
