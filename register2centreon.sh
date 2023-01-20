@@ -139,7 +139,7 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # enable snmpd
 configure-snmp
 # curl centreon authentication
-TOKEN="$(curl -s -d 'username=${REG_CENTREON_CENTRAL_LOGIN}&password=${REG_CENTREON_CENTRAL_PASSWORD}' 'http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
+TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
 debug-var TOKEN
 # curl centreon config host
 # curl centreon config disks
