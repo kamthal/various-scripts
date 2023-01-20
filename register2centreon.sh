@@ -72,7 +72,7 @@ REG_OS_FAMILY=
 REG_MONITORING_PROTOCOL=SNMP
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=public
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
-REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd', [el7]='net-snmp', [el8]='net-snmp', [el9]='net-snmp')
+REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd', [el7]='net-snmp', [el8]='net-snmp', [el9]='net-snmp', [rhel]='net-snmp')
 REG_INSTALL_CMD=
 
 while (( $# > 0 )) ; do
