@@ -43,7 +43,11 @@ function try() {
     OUTPUT="$($* 2>&1)"
     RETURN=$?
     if (( RETURN == 0 )) ; then
-        log "-> OK"
+        if [[ "$EXPECTED_OUTPUT" ]] && [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] ; then
+            log "-> OK"
+        if [[ "$EXPECTED_OUTPUT_RE" ]] && [[ "$OUTPUT" =~ $EXPECTED_OUTPUT_RE ]] ; then
+            log "-> OK"
+        fi
     else
         log "********************************************************************************"
         log "*** ERROR ($RETURN)***"
@@ -139,13 +143,16 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # enable snmpd
 configure-snmp
 # curl centreon authentication
+EXPECTED_OUTPUT_RE=authToken
 TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
 debug-var TOKEN
 # curl centreon config host
 REG_HOSTNAME=$(hostname -s)
 REG_HOSTALIAS=$(hostname -f)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
+EXPECTED_OUTPUT='{"result":[]}'
 try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+EXPECTED_OUTPUT=
 
 # curl centreon config disks
 IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
