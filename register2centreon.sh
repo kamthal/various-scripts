@@ -42,12 +42,12 @@ function try() {
     log "# Trying: $*"
     OUTPUT="$($* 2>&1)"
     RETURN=$?
-    if (( RETURN == 0 )) ; then
-        if [[ "$EXPECTED_OUTPUT" ]] && [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] ; then
-            log "-> OK"
-        elif [[ "$EXPECTED_OUTPUT_RE" ]] && [[ "$OUTPUT" =~ $EXPECTED_OUTPUT_RE ]] ; then
-            log "-> OK"
-        fi
+    if [[ ! "$EXPECTED_OUTPUT" ]] && [[ ! "$EXPECTED_OUTPUT_RE" ]] && (( RETURN == 0 )) ; then
+        log "-> OK"
+    elif [[ "$EXPECTED_OUTPUT" ]] && [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] ; then
+        log "-> OK"
+    elif [[ "$EXPECTED_OUTPUT_RE" ]] && [[ "$OUTPUT" =~ $EXPECTED_OUTPUT_RE ]] ; then
+        log "-> OK"
     else
         log "********************************************************************************"
         log "*** ERROR ($RETURN)***"
