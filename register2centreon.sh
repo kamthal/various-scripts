@@ -145,6 +145,7 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 configure-snmp
 # curl centreon authentication
 TMP_DIR="$(mktemp -d)"
+debug-var TMP_DIR
 [[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
 EXPECTED_OUTPUT_RE=authToken
 TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
