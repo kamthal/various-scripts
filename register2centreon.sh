@@ -122,7 +122,7 @@ while (( $# > 0 )) ; do
         --verbose)
             VERBOSE=1
             ;;
-        )
+        *)
             echo -e "*** Error: Argument '$arg' is not supported\n"
             show-help
             exit 1
