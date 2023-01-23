@@ -109,27 +109,27 @@ debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 
 REG_INSTALL_CMD=
 
-while (( $# > 0 )) ; do
-    arg="$1"
-    case $arg in
-        --help|-h)
-            show-help
-            exit 0
-            ;;
-        --debug)
-            DEBUG=1
-            ;;
-        --verbose)
-            VERBOSE=1
-            ;;
-        *)
-            echo -e "*** Error: Argument '$arg' is not supported\n"
-            show-help
-            exit 1
-        ;;
-    esac
-    shift
-done
+#while (( $# > 0 )) ; do
+#    arg="$1"
+#    case $arg in
+#        --help|-h)
+#            show-help
+#            exit 0
+#            ;;
+#        --debug)
+#            DEBUG=1
+#            ;;
+#        --verbose)
+#            VERBOSE=1
+#            ;;
+#        *)
+#            echo -e "*** Error: Argument '$arg' is not supported\n"
+#            show-help
+#            exit 1
+#        ;;
+#    esac
+#    shift
+#done
 
 # Determine distro name
 # Determine distro version
