@@ -171,7 +171,6 @@ debug-var RET
 [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
 OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
 [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
-EXPECTED_OUTPUT=
 
 curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_tpl_output.json"
 OUTPUT="$(cat ${TMP_DIR}/apply_tpl_output.json)"
