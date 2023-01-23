@@ -158,7 +158,7 @@ TMP_DIR="$(mktemp -d)"
 debug-var TMP_DIR
 [[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
 EXPECTED_OUTPUT_RE=authToken
-TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
+TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/' | sed -e 's/\\\\/\\/g')"
 debug-var TOKEN
 # curl centreon config host
 REG_HOSTNAME=$(hostname -s)
@@ -170,16 +170,16 @@ RET=$?
 debug-var RET
 [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
 OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: $OUTPUT"
+[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
 EXPECTED_OUTPUT=
 
 curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_tpl_output.json"
 OUTPUT="$(cat ${TMP_DIR}/apply_tpl_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply template: $OUTPUT"
+[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply template: '$OUTPUT'"
 
 curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "1"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_cfg_output.json"
 OUTPUT="$(cat ${TMP_DIR}/apply_cfg_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply cfg: $OUTPUT"
+[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply cfg: '$OUTPUT'"
 
 # curl centreon config disks
 IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
