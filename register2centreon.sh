@@ -104,6 +104,40 @@ EOF
     systemctl enable "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
 }
 
+function curl-apiv1-authenticate() {
+    local EXPECTED_OUTPUT_RE=authToken
+    TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/' | sed -e 's/\\\//\//g')"
+    debug-var TOKEN
+}
+
+function curl-apiv1-create-host() {
+    local EXPECTED_OUTPUT='{"result":[]}'
+    curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
+    RET=$?
+    debug-var RET
+    [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
+    OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+}
+
+function curl-apiv1-apply-template() {
+    local EXPECTED_OUTPUT='{"result":[]}'
+    curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_tpl_output.json"
+    RET=$?
+    debug-var RET
+    [[ "$RET" == 0 ]] || fatal "Return code for template application: $RET"
+    OUTPUT="$(cat ${TMP_DIR}/apply_tpl_output.json)"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply template: '$OUTPUT'"
+}
+
+function curl-apiv1-apply-cfg() {
+    local EXPECTED_OUTPUT='{"result":[]}'
+    curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "1"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_cfg_output.json"
+    debug-var RET
+    [[ "$RET" == 0 ]] || fatal "Return code for config application: $RET"
+    OUTPUT="$(cat ${TMP_DIR}/apply_cfg_output.json)"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply cfg: '$OUTPUT'"
+}
 REG_OS_FAMILY=
 REG_CENTREON_CENTRAL_IP=192.168.58.121
 REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}"
@@ -116,6 +150,10 @@ declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
 REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
 debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
+REG_HOSTNAME=$(hostname -s)
+REG_HOSTALIAS=$(hostname -f)
+REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
+TMP_DIR="$(mktemp -d)"
 
 REG_INSTALL_CMD=
 
@@ -145,40 +183,28 @@ REG_INSTALL_CMD=
 # Determine distro version
 # Determine install command
 determine-distro
+
 # install snmpd
 install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
+
 # configure snmpd
 # * community
 # * authorized ip
 # restart snmpd
 # enable snmpd
 configure-snmp
+
 # curl centreon authentication
-TMP_DIR="$(mktemp -d)"
 debug-var TMP_DIR
 [[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
-EXPECTED_OUTPUT_RE=authToken
-TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/' | sed -e 's/\\\//\//g')"
-debug-var TOKEN
+curl-apiv1-authenticate
+
 # curl centreon config host
-REG_HOSTNAME=$(hostname -s)
-REG_HOSTALIAS=$(hostname -f)
-REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
-EXPECTED_OUTPUT='{"result":[]}'
-curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
-RET=$?
-debug-var RET
-[[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
-OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+curl-apiv1-create-host
 
-curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_tpl_output.json"
-OUTPUT="$(cat ${TMP_DIR}/apply_tpl_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply template: '$OUTPUT'"
+curl-apiv1-apply-template
 
-curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "1"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/apply_cfg_output.json"
-OUTPUT="$(cat ${TMP_DIR}/apply_cfg_output.json)"
-[[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || fatal "Unexpected output for apply cfg: '$OUTPUT'"
+curl-apiv1-apply-cfg
 
 # curl centreon config disks
 IFS=$'\n' REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
