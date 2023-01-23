@@ -8,6 +8,7 @@ LOG_FILE="register2centreon.log"
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
 }
+
 function debug-var() {
         debug "$(declare -p $1)"
 }
@@ -121,7 +122,7 @@ while (( $# > 0 )) ; do
         --verbose)
             VERBOSE=1
             ;;
-        *)
+        )
             echo -e "*** Error: Argument '$arg' is not supported\n"
             show-help
             exit 1
@@ -143,6 +144,8 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 # enable snmpd
 configure-snmp
 # curl centreon authentication
+TMP_DIR="$(mktemp -d)"
+[[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
 EXPECTED_OUTPUT_RE=authToken
 TOKEN="$(curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate' | sed -e 's/{"authToken":"\(.*\)"}/\1/')"
 debug-var TOKEN
@@ -151,7 +154,7 @@ REG_HOSTNAME=$(hostname -s)
 REG_HOSTALIAS=$(hostname -f)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 EXPECTED_OUTPUT='{"result":[]}'
-try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
 EXPECTED_OUTPUT=
 
 # curl centreon config disks
@@ -165,3 +168,4 @@ debug-var REG_SERVICES_LIST
 # curl centreon config 
 # 
 
+#rm -fr "$TMP_DIR"
