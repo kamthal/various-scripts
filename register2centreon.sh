@@ -77,8 +77,9 @@ function install() {
     try ${REG_INSTALL_CMD} install -y $*
 }
 function configure-snmp() {
+    if [[ "$REG_OS_FAMILY" == 'rhel' ]] ; then
     cat >/etc/snmp/snmpd.conf <<EOF
-com2sec notConfigUser  ${REG_CENTREON_POLLER:-$REG_CENTREON_POLLER}       ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}
+com2sec notConfigUser  ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}       ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}
 group   notConfigGroup v2c           notConfigUser
 access notConfigGroup "" any noauth exact centreon none none
 syslocation Unknown (edit /etc/snmp/snmpd.conf)
@@ -90,6 +91,15 @@ view    systemview    included   .1.3.6.1.2.1.1
 view    systemview    included   .1.3.6.1.2.1.25.1.1
 includeAllDisks 5%
 EOF
+    elif [[ "$REG_OS_FAMILY" == 'debian' ]] ; then
+        cat >/etc/snmp/snmpd.conf <<EOF
+agentaddress udp:161
+rocommunity ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY} ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}/24
+syslocation Here we are
+syscontact Princes of Universe
+EOF
+    fi
+
     systemctl restart "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
     systemctl enable "${REG_MONITORING_PROTOCOL_SNMP_SERVICE[$REG_OS_FAMILY]}"
 }
