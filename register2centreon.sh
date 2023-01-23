@@ -154,6 +154,8 @@ REG_HOSTNAME=$(hostname -s)
 REG_HOSTALIAS=$(hostname -f)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 TMP_DIR="$(mktemp -d)"
+debug-var TMP_DIR
+[[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
 
 REG_INSTALL_CMD=
 
@@ -195,8 +197,6 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 configure-snmp
 
 # curl centreon authentication
-debug-var TMP_DIR
-[[ "$TMP_DIR" && -d "$TMP_DIR" ]] || fatal "error with mktemp"
 curl-apiv1-authenticate
 
 # curl centreon config host
