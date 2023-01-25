@@ -118,7 +118,7 @@ function curl-apiv1-create-host() {
     debug-var RET
     [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
     OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
-    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists ('${REG_HOSTNAME}')"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
 }
 
 function curl-apiv1-set-host-community() {
@@ -128,7 +128,7 @@ function curl-apiv1-set-host-community() {
     debug-var RET
     [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
     OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
-    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host community: '$OUTPUT'"
 }
 
 function curl-apiv1-apply-template() {
@@ -156,7 +156,7 @@ REG_CENTREON_CENTRAL_LOGIN=admin
 REG_CENTREON_CENTRAL_PASSWORD=centreon
 REG_CENTREON_POLLER=192.168.58.121
 REG_MONITORING_PROTOCOL=SNMP
-REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=turlututu
+REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
 REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
@@ -212,7 +212,7 @@ curl-apiv1-authenticate
 
 # curl centreon config host
 curl-apiv1-create-host
-
+curl-apiv1-set-host-community
 curl-apiv1-apply-template
 
 curl-apiv1-apply-cfg
