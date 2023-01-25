@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export LC_ALL=C
 DEBUG=1
 VERBOSE=1
 #LOG_FILE="${0%.sh}.log"
@@ -94,7 +95,7 @@ EOF
     elif [[ "$REG_OS_FAMILY" == 'debian' ]] ; then
         cat >/etc/snmp/snmpd.conf <<EOF
 agentaddress udp:161
-rocommunity ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY} ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}/24
+rocommunity ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY} ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}
 syslocation Here we are
 syscontact Princes of Universe
 EOF
@@ -113,6 +114,16 @@ function curl-apiv1-authenticate() {
 function curl-apiv1-create-host() {
     local EXPECTED_OUTPUT='{"result":[]}'
     curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
+    RET=$?
+    debug-var RET
+    [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
+    OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
+    [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists (central-deb-22-10)"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+}
+
+function curl-apiv1-set-host-community() {
+    local EXPECTED_OUTPUT='{"result":[]}'
+    curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "setparam", "values": "'${REG_HOSTNAME}';host_snmp_community;'${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
     RET=$?
     debug-var RET
     [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
@@ -145,7 +156,7 @@ REG_CENTREON_CENTRAL_LOGIN=admin
 REG_CENTREON_CENTRAL_PASSWORD=centreon
 REG_CENTREON_POLLER=192.168.58.121
 REG_MONITORING_PROTOCOL=SNMP
-REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=public
+REG_MONITORING_PROTOCOL_SNMP_COMMUNITY=turlututu
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
 REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
