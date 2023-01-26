@@ -39,11 +39,15 @@ EOH
 }
 
 function try() {
-    local OUTPUT=
+    OUTPUT=
     local RETURN=
     log "# Trying: $*"
+    [[ "$DEBUG" ]] && set -x
+    $*
+    [[ "$DEBUG" ]] && set +x
     OUTPUT="$($* 2>&1)"
     RETURN=$?
+
     if [[ ! "$EXPECTED_OUTPUT" ]] && [[ ! "$EXPECTED_OUTPUT_RE" ]] && (( RETURN == 0 )) ; then
         log "-> OK"
     elif [[ "$EXPECTED_OUTPUT" ]] && [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] ; then
@@ -53,7 +57,7 @@ function try() {
     else
         log "********************************************************************************"
         log "*** ERROR ($RETURN)***"
-        log "$OUTPUT"
+        log "Output '$OUTPUT' does not match '${EXPECTED_OUTPUT:-$EXPECTED_OUTPUT_RE}'"
         log "********************************************************************************"
         exit
     fi
@@ -111,14 +115,26 @@ function curl-apiv1-authenticate() {
     debug-var TOKEN
 }
 
+function curl-apiv1-authenticate() {
+    EXPECTED_OUTPUT_RE=authToken
+    try curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate'
+    TOKEN="$(echo "$OUTPUT" | sed -e 's/{"authToken":"\(.*\)"}/\1/' | sed -e 's/\\\//\//g')"
+    debug-var TOKEN
+}
+
 function curl-apiv1-create-host() {
-    local EXPECTED_OUTPUT='{"result":[]}'
+    local EXPECTED_OUTPUT_RE='{"result":[]}|"Object already exists ('${REG_HOSTNAME}')"'
     curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi' > "${TMP_DIR}/create_host_output.json"
     RET=$?
     debug-var RET
     [[ "$RET" == 0 ]] || fatal "Return code for host creation: $RET"
     OUTPUT="$(cat ${TMP_DIR}/create_host_output.json)"
     [[ "$OUTPUT" == "$EXPECTED_OUTPUT" ]] || [[ "$OUTPUT" == '"Object already exists ('${REG_HOSTNAME}')"' ]] || fatal "Unexpected output for host creation: '$OUTPUT'"
+}
+
+function curl-apiv1-create-host() {
+    EXPECTED_OUTPUT_RE='{"result":[]}|"Object already exists \('${REG_HOSTNAME}'\)"'
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 }
 
 function curl-apiv1-set-host-community() {
@@ -208,11 +224,22 @@ install "${REG_MONITORING_PROTOCOL_SNMP_PACKAGE[$REG_OS_FAMILY]}"
 configure-snmp
 
 # curl centreon authentication
-curl-apiv1-authenticate
+#curl-apiv1-authenticate
+EXPECTED_OUTPUT_RE=authToken
+try curl -s -d 'username='${REG_CENTREON_CENTRAL_LOGIN}'&password='${REG_CENTREON_CENTRAL_PASSWORD} 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=authenticate'
+TOKEN="$(echo "$OUTPUT" | sed -e 's/{"authToken":"\(.*\)"}/\1/' | sed -e 's/\\\//\//g')"
+debug-var TOKEN
 
 # curl centreon config host
-curl-apiv1-create-host
-curl-apiv1-set-host-community
+#curl-apiv1-create-host
+EXPECTED_OUTPUT=
+EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists \('${REG_HOSTNAME}'\)"'
+try curl -s --header Content-Type:application/json --header "centreon-auth-token:${TOKEN}" -d "{\"object\":\"host\",\"action\":\"add\",\"values\":\"${REG_HOSTNAME};${REG_HOSTALIAS};${REG_HOSTADDRESS};OS-Linux-SNMP-custom;Central;\"}" -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+
+#curl-apiv1-set-host-community
+EXPECTED_OUTPUT_RE=
+EXPECTED_OUTPUT='{"result":[]}'
+try curl -s --header 'Content-Type:application/json' --header "centreon-auth-token:$TOKEN" -d "{\"object\":\"host\",\"action\":\"setparam\",\"values\":\"${REG_HOSTNAME};host_snmp_community;${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY};${REG_HOSTADDRESS};OS-Linux-SNMP-custom;Central;\"}" -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
 curl-apiv1-apply-template
 
 curl-apiv1-apply-cfg
