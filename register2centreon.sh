@@ -85,7 +85,7 @@ function install() {
 function configure-snmp() {
     if [[ "$REG_OS_FAMILY" == 'rhel' ]] ; then
     cat >/etc/snmp/snmpd.conf <<EOF
-com2sec notConfigUser  ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}       ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}
+com2sec notConfigUser  ${REG_CENTREON_POLLER_IP:-$REG_CENTREON_CENTRAL_IP}       ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY}
 group   notConfigGroup v2c           notConfigUser
 access notConfigGroup "" any noauth exact centreon none none
 syslocation Unknown (edit /etc/snmp/snmpd.conf)
@@ -100,7 +100,7 @@ EOF
     elif [[ "$REG_OS_FAMILY" == 'debian' ]] ; then
         cat >/etc/snmp/snmpd.conf <<EOF
 agentaddress udp:161
-rocommunity ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY} ${REG_CENTREON_POLLER:-$REG_CENTREON_CENTRAL_IP}
+rocommunity ${REG_MONITORING_PROTOCOL_SNMP_COMMUNITY} ${REG_CENTREON_POLLER_IP:-$REG_CENTREON_CENTRAL_IP}
 syslocation Here we are
 syscontact Princes of Universe
 EOF
@@ -116,7 +116,8 @@ REG_CENTREON_CENTRAL_IP=192.168.58.121
 REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}"
 REG_CENTREON_CENTRAL_LOGIN=admin
 REG_CENTREON_CENTRAL_PASSWORD=centreon
-REG_CENTREON_POLLER=192.168.58.121
+REG_CENTREON_POLLER_NAME=Central
+REG_CENTREON_POLLER_IP=192.168.58.121
 REG_MONITORING_PROTOCOL=SNMP
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
@@ -124,7 +125,7 @@ REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
 REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
 debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_HOSTNAME=$(hostname -s)
-REG_HOSTALIAS=$(hostname -f)
+REG_HOSTALIAS=$(hostname)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 REG_INSTALL_CMD=
 
@@ -175,7 +176,7 @@ debug-var TOKEN
 # centreon config host
 EXPECTED_OUTPUT=
 EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists \('${REG_HOSTNAME}'\)"'
-try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;Central;"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;'${REG_CENTREON_POLLER_NAME}';"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 #curl-apiv1-create-host
 
 EXPECTED_OUTPUT='{"result":[]}'
@@ -207,7 +208,7 @@ oIFS="$IFS"
 IFS=$'\n'
 REG_SERVICES_LIST=($(systemctl -t service --no-pager --state=enabled --no-legend list-unit-files | awk '{print  $1}'))
 IFS="$oIFS"
-declare -p REG_SERVICES_LIST
+debug-var REG_SERVICES_LIST
 for svc in "${REG_SERVICES_LIST[@]}" ; do
     debug-var svc
     process=$(ps -e -o unit,exe | grep -E '^'$svc | awk '{print $2}' | sort -u)
@@ -225,6 +226,6 @@ done
 
 EXPECTED_OUTPUT=''
 EXPECTED_OUTPUT_RE='Configuration files generated for poller'
-try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "1"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "'${REG_CENTREON_POLLER_NAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 
 
