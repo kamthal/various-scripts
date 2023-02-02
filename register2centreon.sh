@@ -82,6 +82,7 @@ function determine-distro() {
 function install() {
     try ${REG_INSTALL_CMD} install -y $*
 }
+
 function configure-snmp() {
     if [[ "$REG_OS_FAMILY" == 'rhel' ]] ; then
     cat >/etc/snmp/snmpd.conf <<EOF
@@ -128,6 +129,9 @@ REG_HOSTNAME=$(hostname -s)
 REG_HOSTALIAS=$(hostname)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 REG_INSTALL_CMD=
+REG_HOST_TEMPLATE=OS-Linux-SNMP-custom
+REG_DISK_TEMPLATE=OS-Linux-Disk-Global-SNMP-custom
+REG_PROC_TEMPLATE=OS-Linux-Process-Generic-SNMP-custom
 
 #while (( $# > 0 )) ; do
 #    arg="$1"
@@ -176,7 +180,7 @@ debug-var TOKEN
 # centreon config host
 EXPECTED_OUTPUT=
 EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists \('${REG_HOSTNAME}'\)"'
-try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';OS-Linux-SNMP-custom;'${REG_CENTREON_POLLER_NAME}';"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "host", "action": "add", "values": "'${REG_HOSTNAME}';'${REG_HOSTALIAS}';'${REG_HOSTADDRESS}';'${REG_HOST_TEMPLATE}';'${REG_CENTREON_POLLER_NAME}';"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 #curl-apiv1-create-host
 
 EXPECTED_OUTPUT='{"result":[]}'
@@ -197,7 +201,7 @@ debug-var REG_DISKS_LIST
 for disk in "${REG_DISKS_LIST[@]}" ; do
     EXPECTED_OUTPUT=''
     EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';OS-Linux-Disk-Global-SNMP-custom"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';'${REG_DISK_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
     EXPECTED_OUTPUT='{"result":[]}'
     EXPECTED_OUTPUT_RE=''
     try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';filter;^'${disk}'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
@@ -216,7 +220,7 @@ for svc in "${REG_SERVICES_LIST[@]}" ; do
     [[ "$process" ]] || continue
     EXPECTED_OUTPUT=''
     EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';OS-Linux-Process-Generic-SNMP-custom"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
     EXPECTED_OUTPUT='{"result":[]}'
     EXPECTED_OUTPUT_RE=''
     try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processname;'${process##*/}'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
