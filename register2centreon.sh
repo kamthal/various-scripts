@@ -215,16 +215,37 @@ IFS="$oIFS"
 debug-var REG_SERVICES_LIST
 for svc in "${REG_SERVICES_LIST[@]}" ; do
     debug-var svc
-    process=$(ps -e -o unit,exe | grep -E '^'$svc | awk '{print $2}' | sort -u)
-    debug-var process
-    [[ "$process" ]] || continue
-    EXPECTED_OUTPUT=''
-    EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-    EXPECTED_OUTPUT='{"result":[]}'
-    EXPECTED_OUTPUT_RE=''
-    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processname;'${process##*/}'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processpath;'${process}'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+    #process=$(ps -e -o unit,cmd | sort -u | grep -E '^'$svc | awk '{print $2}')
+    oIFS="$IFS"
+    IFS=$'\n'
+    #processes=($(ps -e -o unit,cmd | sort -u | grep -E '^'$svc | awk '{$1="" ; print $row}'))
+    processes=($(ps -e -o unit,cmd | grep -E '^'$svc | awk '{print $2}' | sort -u))
+    IFS="$oIFS"
+    debug-var processes
+    declare -p processes
+    [[ "${#processes[@]}" > 0 ]] || continue
+    for process in "${processes[@]}" ; do
+        declare -p process
+        process_clean="${process## }"
+        pgname="${process_clean%% *}"
+        pgexec="${pgname##*/}"
+        pgpath="${pgname%% *}"
+        #pgargs="${process_clean/$pgname}"
+        if [[ "${#processes[@]}" > 1 ]] ; then
+            svcsuffix="-${pgexec}"
+        else
+            svcsuffix=
+        fi
+        declare -p pgname pgexec pgpath
+        EXPECTED_OUTPUT=''
+        EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
+        try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svc%.service}${svcsuffix}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+        EXPECTED_OUTPUT='{"result":[]}'
+        EXPECTED_OUTPUT_RE=''
+        try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svc%.service}${svcsuffix}"';processname;^'"${pgexec}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+        try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svc%.service}${svcsuffix}"';processpath;'"${pgpath}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+        #try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processargs;'"${pgargs# }"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+    done
 done
 # curl centreon config interfaces
 
