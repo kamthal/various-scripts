@@ -18,7 +18,6 @@ REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' 
 declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
 REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
-debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
 REG_HOSTNAME=$(hostname -s)
 REG_HOSTALIAS=$(hostname)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
