@@ -23,7 +23,7 @@ function log() {
 }
 
 function fatal(){
-    log "$*"
+    log "FATAL: $*"
     exit 1
 }
 
@@ -69,7 +69,7 @@ function determine-distro() {
         REG_INSTALL_CMD='apt-get'
         REG_OS_FAMILY=debian
         debug-var REG_INSTALL_CMD
-        apt-get update
+        try apt-get update
     elif [[ -f /etc/redhat-release ]] ; then
         verbose "System is RHEL-based"
         REG_INSTALL_CMD='yum'
@@ -219,39 +219,51 @@ for svc in "${REG_SERVICES_LIST[@]}" ; do
     #process=$(ps -e -o unit,cmd | sort -u | grep -E '^'$svc | awk '{print $2}')
     oIFS="$IFS"
     IFS=$'\n'
-    processes=($(ps -e -o unit,cmd | sort -u | grep -E '^'"$svc"))
+    processes=($(ps -e -o unit,cmd | sort -u | grep '^'"$svc "))
     #processes=($(ps -e -o unit,cmd | grep -E '^'"$svc" | sort -u))
     IFS="$oIFS"
     debug-var processes
     #declare -p processes
     PROC_REGEX='^'"$svc"' +([^:]*:)? ([^ ]+) ?(.*)$'
     list_args=
+    current_proc=
+    current_proc_nb=0
     for process in "${processes[@]}" ; do
         #declare -p process
         if [[ "$process" =~ $PROC_REGEX ]] ; then
             #declare -p BASH_REMATCH
-            echo "$svc | ${BASH_REMATCH[2]} | ${BASH_REMATCH[3]}"
             pgpath="${BASH_REMATCH[2]}"
             pgexec="${pgpath##*/}"
             pgargs="${BASH_REMATCH[3]}"
+            echo "${svc};${pgexec};${pgpath};${pgargs}"
             [[ "$pgargs" ]] && [[ "$list_args" ]] && list_args+='|'
             [[ "$pgargs" ]] && list_args+="${BASH_REMATCH[3]:0:128}"
-            declare -p pgpath pgexec pgargs
+            debug-var pgpath pgexec pgargs
+        else
+            fatal "Process '${process}' does not match /${PROC_REGEX}/"
         fi
-        declare -p list_args
+        debug-var -p list_args
         if [[ "${#processes[@]}" > 1 ]] ; then
             svcsuffix="-${pgexec}"
         else
             svcsuffix=
         fi
-        EXPECTED_OUTPUT=''
-        EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-        try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-        EXPECTED_OUTPUT='{"result":[]}'
-        EXPECTED_OUTPUT_RE=''
-        try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processname;^'"${pgexec:0:15}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processpath;^'"${pgpath:0:128}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svcname}${svcsuffix}';processargs;'"${list_args}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+        if [[ "$pgexec" != "$current_proc" ]] ; then
+            current_proc="$pgexec"
+            current_proc_nb=0
+            EXPECTED_OUTPUT=''
+            EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
+            try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+            EXPECTED_OUTPUT='{"result":[]}'
+            EXPECTED_OUTPUT_RE=''
+            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processname;^'"${pgexec:0:15}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processpath;^'"${pgpath:0:128}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+        else
+            ((current_proc_nb++))
+            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';critical;'"${current_proc_nb}"':"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+        fi
+        #try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svcname}${svcsuffix}';processargs;'"${list_args}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+
     done
 done
 # curl centreon config interfaces
