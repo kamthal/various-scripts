@@ -6,12 +6,33 @@ export LC_ALL=C
 #LOG_FILE="${0%.sh}.log"
 LOG_FILE="register2centreon.log"
 
+REG_OS_FAMILY=
+REG_CENTREON_CENTRAL_IP=192.168.58.121
+REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}"
+REG_CENTREON_CENTRAL_LOGIN=admin
+REG_CENTREON_CENTRAL_PASSWORD=centreon
+REG_CENTREON_POLLER_NAME=Central
+REG_CENTREON_POLLER_IP=192.168.58.121
+REG_MONITORING_PROTOCOL=SNMP
+REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
+declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
+REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
+REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
+debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
+REG_HOSTNAME=$(hostname -s)
+REG_HOSTALIAS=$(hostname)
+REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
+REG_INSTALL_CMD=
+REG_HOST_TEMPLATE=OS-Linux-SNMP-custom
+REG_DISK_TEMPLATE=OS-Linux-Disk-Global-SNMP-custom
+REG_PROC_TEMPLATE=OS-Linux-Process-Generic-SNMP-custom
+
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
 }
 
 function debug-var() {
-        debug "$(declare -p $1)"
+        debug "$(declare -p $*)"
 }
 
 function verbose() {
@@ -112,27 +133,6 @@ EOF
 }
 
 
-REG_OS_FAMILY=
-REG_CENTREON_CENTRAL_IP=192.168.58.121
-REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}"
-REG_CENTREON_CENTRAL_LOGIN=admin
-REG_CENTREON_CENTRAL_PASSWORD=centreon
-REG_CENTREON_POLLER_NAME=Central
-REG_CENTREON_POLLER_IP=192.168.58.121
-REG_MONITORING_PROTOCOL=SNMP
-REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
-declare -A REG_MONITORING_PROTOCOL_SNMP_PACKAGE
-REG_MONITORING_PROTOCOL_SNMP_PACKAGE=([debian]='snmpd' [rhel]='net-snmp' )
-REG_MONITORING_PROTOCOL_SNMP_SERVICE=([debian]='snmpd' [rhel]='snmpd' )
-debug-var REG_MONITORING_PROTOCOL_SNMP_PACKAGE
-REG_HOSTNAME=$(hostname -s)
-REG_HOSTALIAS=$(hostname)
-REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
-REG_INSTALL_CMD=
-REG_HOST_TEMPLATE=OS-Linux-SNMP-custom
-REG_DISK_TEMPLATE=OS-Linux-Disk-Global-SNMP-custom
-REG_PROC_TEMPLATE=OS-Linux-Process-Generic-SNMP-custom
-
 #while (( $# > 0 )) ; do
 #    arg="$1"
 #    case $arg in
@@ -216,14 +216,11 @@ debug-var REG_SERVICES_LIST
 for svc in "${REG_SERVICES_LIST[@]}" ; do
     svcname="${svc%.service}"
     debug-var svc
-    #process=$(ps -e -o unit,cmd | sort -u | grep -E '^'$svc | awk '{print $2}')
     oIFS="$IFS"
     IFS=$'\n'
     processes=($(ps -e -o unit,cmd | sort -u | grep '^'"$svc "))
-    #processes=($(ps -e -o unit,cmd | grep -E '^'"$svc" | sort -u))
     IFS="$oIFS"
     debug-var processes
-    #declare -p processes
     PROC_REGEX='^'"$svc"' +([^:]*:)? ([^ ]+) ?(.*)$'
     list_args=
     current_proc=
