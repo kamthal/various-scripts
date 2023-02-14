@@ -1,8 +1,8 @@
 #!/bin/bash
 
 export LC_ALL=C
-DEBUG=1
-VERBOSE=1
+#DEBUG=1
+#VERBOSE=1
 #LOG_FILE="${0%.sh}.log"
 LOG_FILE="register2centreon.log"
 
@@ -15,16 +15,17 @@ REG_CENTREON_POLLER_NAME=Central
 REG_CENTREON_POLLER_IP=192.168.58.121
 REG_MONITORING_PROTOCOL=NRPE
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
-declare -A REG_MONITORING_PROTOCOL_NRPE_PACKAGE REG_MONITORING_PROTOCOL_NRPE_SERVICE
+declare -A REG_MONITORING_PROTOCOL_NRPE_PACKAGE REG_MONITORING_PROTOCOL_NRPE_SERVICE REG_MONITORING_PROTOCOL_NRPE_CONFD
 REG_MONITORING_PROTOCOL_NRPE_PACKAGE=([debian]='nagios-nrpe-server' [rhel]='nrpe' )
 REG_MONITORING_PROTOCOL_NRPE_SERVICE=([debian]='nagios-nrpe-server' [rhel]='nrpe.service' )
-REG_HOSTNAME=$(hostname -s)
+REG_MONITORING_PROTOCOL_NRPE_CONFD=([debian]='/etc/nagios/nrpe.d/' [rhel]='/etc/nrpe.d/' )
+REG_HOSTNAME="$(hostname -s)-$(date +%s)"
 REG_HOSTALIAS=$(hostname)
 REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 REG_INSTALL_CMD=
 REG_HOST_TEMPLATE=OS-Linux-NRPE4
-REG_DISK_TEMPLATE=OS-Linux-Disks-NRPE3-custom
-REG_PROC_TEMPLATE=OS-Linux-Process-Generic-NRPE3-custom
+REG_DISK_TEMPLATE=OS-Linux-Disk-NRPE4
+REG_PROC_TEMPLATE=OS-Linux-Generic-Command-NRPE4
 
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
@@ -92,7 +93,7 @@ function determine-distro() {
         try apt-get update
     elif [[ -f /etc/redhat-release ]] ; then
         verbose "System is RHEL-based"
-        REG_INSTALL_CMD='yum'
+        REG_INSTALL_CMD='yum -b'
         REG_OS_FAMILY=rhel
     else
         fatal "System is unsupported"
@@ -113,8 +114,8 @@ function configure-nrpe() {
     sed -Ei 's/^#?ssl_privatekey_file=.*$/ssl_privatekey_file=\/etc\/nagios\/server.key/' /etc/nagios/nrpe.cfg
     #This works:
     #/usr/lib/centreon/plugins/centreon_protocol_nrpe.pl --plugin apps::protocols::nrpe::plugin --mode query --custommode nrpe --hostname 192.168.58.126 --command check_fake --ssl-opt="SSL_verify_mode => SSL_VERIFY_NONE"
-    cat >/etc/nagios/nrpe.d/custom-centreon.cfg <<EOF
-command[check_host]=/bin/echo "NRPE4: OK"
+    cat >"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<'EOF'
+command[check_nrpe]=/bin/echo "NRPE4: OK"
 command[check_cpu]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode  cpu --warning-average=80 --critical-average=90
 command[check_cpu_detailed]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode  cpu-detailed
 command[check_load]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode load --warning 2,3,4 --critical=4,5,6 --average
@@ -153,7 +154,7 @@ EOF
 determine-distro
 
 # install snmpd
-install curl "${REG_MONITORING_PROTOCOL_NRPE_PACKAGE[$REG_OS_FAMILY]}" centreon-plugin-operatingsystems-linux-local
+install curl "${REG_MONITORING_PROTOCOL_NRPE_PACKAGE[$REG_OS_FAMILY]}" centreon-plugin-Operatingsystems-Linux-Local
 
 # configure snmpd
 # * community
@@ -183,21 +184,21 @@ try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-to
 EXPECTED_OUTPUT='{"result":[]}'
 EXPECTED_OUTPUT_RE=
 try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-exit
+
 # curl centreon config disks
-oIFS="$IFS"
-IFS=$'\n'
-REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
-IFS="$oIFS"
-debug-var REG_DISKS_LIST
-for disk in "${REG_DISKS_LIST[@]}" ; do
-    EXPECTED_OUTPUT=''
-    EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';'${REG_DISK_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-    EXPECTED_OUTPUT='{"result":[]}'
-    EXPECTED_OUTPUT_RE=''
-    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';filter;^'${disk}'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-done
+#oIFS="$IFS"
+#IFS=$'\n'
+#REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
+#IFS="$oIFS"
+#debug-var REG_DISKS_LIST
+#for disk in "${REG_DISKS_LIST[@]}" ; do
+#    EXPECTED_OUTPUT=''
+#    EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
+#    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';'${REG_DISK_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+#    EXPECTED_OUTPUT='{"result":[]}'
+#    EXPECTED_OUTPUT_RE=''
+#    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';filter;^'${disk}'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+#done
 
 # config services/processes
 oIFS="$IFS"
@@ -208,6 +209,15 @@ debug-var REG_SERVICES_LIST
 for svc in "${REG_SERVICES_LIST[@]}" ; do
     svcname="${svc%.service}"
     debug-var svc
+    EXPECTED_OUTPUT='{"result":[]}'
+    EXPECTED_OUTPUT_RE=''
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';nrpecommand;check_svc_'"${svcname}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+    cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
+command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}\$'
+EOF
+
+    continue
     oIFS="$IFS"
     IFS=$'\n'
     processes=($(ps -e -o unit,cmd | sort -u | grep '^'"$svc "))
@@ -267,6 +277,7 @@ for svc in "${REG_SERVICES_LIST[@]}" ; do
 done
 # curl centreon config interfaces
 
+try systemctl restart "${REG_MONITORING_PROTOCOL_NRPE_SERVICE[$REG_OS_FAMILY]}"
 EXPECTED_OUTPUT=''
 EXPECTED_OUTPUT_RE='Configuration files generated for poller'
 try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "'${REG_CENTREON_POLLER_NAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
