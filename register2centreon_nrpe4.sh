@@ -25,7 +25,7 @@ REG_HOSTADDRESS=$(hostname -I | awk '{print $NF}')
 REG_INSTALL_CMD=
 REG_HOST_TEMPLATE=OS-Linux-NRPE4
 REG_DISK_TEMPLATE=OS-Linux-Disk-NRPE4
-REG_PROC_TEMPLATE=OS-Linux-Generic-Command-NRPE4
+REG_CMD_TEMPLATE=OS-Linux-Generic-Command-NRPE4
 
 function debug() {
     [[ "$DEBUG" ]] && log "$*"
@@ -185,21 +185,6 @@ EXPECTED_OUTPUT='{"result":[]}'
 EXPECTED_OUTPUT_RE=
 try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "host", "action": "applytpl", "values": "'${REG_HOSTNAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 
-# curl centreon config disks
-#oIFS="$IFS"
-#IFS=$'\n'
-#REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
-#IFS="$oIFS"
-#debug-var REG_DISKS_LIST
-#for disk in "${REG_DISKS_LIST[@]}" ; do
-#    EXPECTED_OUTPUT=''
-#    EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-#    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';'${REG_DISK_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-#    EXPECTED_OUTPUT='{"result":[]}'
-#    EXPECTED_OUTPUT_RE=''
-#    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';filter;^'${disk}'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-#done
-
 # config services/processes
 oIFS="$IFS"
 IFS=$'\n'
@@ -210,75 +195,37 @@ for svc in "${REG_SERVICES_LIST[@]}" ; do
     svcname="${svc%.service}"
     debug-var svc
     EXPECTED_OUTPUT='{"result":[]}'
-    EXPECTED_OUTPUT_RE=''
-    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+    EXPECTED_OUTPUT_RE=
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';'${REG_CMD_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
     try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';nrpecommand;check_svc_'"${svcname}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
     cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
-command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}\$'
+command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}$' --critical-total-running='1:'
 EOF
-
-    continue
-    oIFS="$IFS"
-    IFS=$'\n'
-    processes=($(ps -e -o unit,cmd | sort -u | grep '^'"$svc "))
-    IFS="$oIFS"
-    debug-var processes
-    PROC_REGEX='^'"$svc"' +([^:]*:)? ([^ ]+) ?(.*)$'
-    list_args=
-    current_proc=
-    current_proc_nb=0
-    for process in "${processes[@]}" ; do
-        #declare -p process
-        if [[ "$process" =~ $PROC_REGEX ]] ; then
-            #declare -p BASH_REMATCH
-            pgpath="${BASH_REMATCH[2]}"
-            pgexec="${pgpath##*/}"
-            pgargs="${BASH_REMATCH[3]}"
-            echo "${svc};${pgexec};${pgpath};${pgargs}"
-            [[ "$pgargs" ]] && [[ "$list_args" ]] && list_args+='|'
-            [[ "$pgargs" ]] && list_args+="${BASH_REMATCH[3]:0:128}"
-            debug-var pgpath pgexec pgargs
-        else
-            fatal "Process '${process}' does not match /${PROC_REGEX}/"
-        fi
-        debug-var -p list_args
-        if [[ "${#processes[@]}" > 1 ]] ; then
-            svcsuffix="-${pgexec}"
-        else
-            svcsuffix=
-        fi
-        if [[ "$pgexec" != "$current_proc" ]] ; then
-            current_proc="$pgexec"
-            current_proc_nb=0
-            EXPECTED_OUTPUT=''
-            EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-            try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-            EXPECTED_OUTPUT='{"result":[]}'
-            EXPECTED_OUTPUT_RE=''
-            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processname;^'"${pgexec:0:15}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';processpath;^'"${pgpath:0:128}"'$"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        else
-            ((current_proc_nb++))
-            try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}${svcsuffix}"';critical;'"${current_proc_nb}"':"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        fi
-        #try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svcname}${svcsuffix}';processargs;'"${list_args}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-
-    done
-    #process=$(ps -e -o unit,exe | grep -E '^'$svc | awk '{print $2}' | sort -u)
-    #debug-var process
-    #[[ "$process" ]] || continue
-    #EXPECTED_OUTPUT=''
-    #EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
-    #try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';'${REG_PROC_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-    #EXPECTED_OUTPUT='{"result":[]}'
-    #EXPECTED_OUTPUT_RE=''
-    #try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processname;'${process##*/}'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-    #try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'${svc%.service}';processpath;'${process}'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
 done
-# curl centreon config interfaces
 
+# curl centreon config disks
+oIFS="$IFS"
+IFS=$'\n'
+REG_DISKS_LIST=($(df --output=target --exclude-type=tmpfs --exclude-type=devtmpfs | grep -v 'Mounted on'))
+IFS="$oIFS"
+debug-var REG_DISKS_LIST
+for disk in "${REG_DISKS_LIST[@]}" ; do
+    EXPECTED_OUTPUT=
+    EXPECTED_OUTPUT_RE='\{"result":\[\]\}|"Object already exists"'
+    try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Disk-'${disk}';'${REG_CMD_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
+    EXPECTED_OUTPUT='{"result":[]}'
+    EXPECTED_OUTPUT_RE=
+    try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';nrpecommand;check_disk_'"${disk}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
+    cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
+command[check_disk_${disk}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode storage --filter-mountpoint='^${disk}\$' --warning-usage='80' --critical-usage='90'
+EOF
+done
+
+# curl centreon config interfaces
+EXPECTED_OUTPUT=
+EXPECTED_OUTPUT_RE=
 try systemctl restart "${REG_MONITORING_PROTOCOL_NRPE_SERVICE[$REG_OS_FAMILY]}"
-EXPECTED_OUTPUT=''
+EXPECTED_OUTPUT=
 EXPECTED_OUTPUT_RE='Configuration files generated for poller'
 try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"action": "APPLYCFG", "values": "'${REG_CENTREON_POLLER_NAME}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
 
