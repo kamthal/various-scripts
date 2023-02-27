@@ -15,9 +15,13 @@ REG_CENTREON_POLLER_NAME=Central
 REG_CENTREON_POLLER_IP=192.168.58.121
 REG_MONITORING_PROTOCOL=NRPE
 REG_MONITORING_PROTOCOL_SNMP_COMMUNITY="$(cat /dev/urandom | tr -dc '[:alpha:]' | fold -w ${1:-12} | head -n 1)"
-declare -A REG_MONITORING_PROTOCOL_NRPE_PACKAGE REG_MONITORING_PROTOCOL_NRPE_SERVICE REG_MONITORING_PROTOCOL_NRPE_CONFD
+declare -A REG_MONITORING_PROTOCOL_NRPE_PACKAGE
 REG_MONITORING_PROTOCOL_NRPE_PACKAGE=([debian]='nagios-nrpe-server' [rhel]='nrpe' )
+declare -A REG_MONITORING_LOCAL_PLUGIN
+REG_MONITORING_LOCAL_PLUGIN=([debian]='centreon-plugin-operatingsystems-linux-local' [rhel]='centreon-plugin-Operatingsystems-Linux-Local' )
+declare -A REG_MONITORING_PROTOCOL_NRPE_SERVICE
 REG_MONITORING_PROTOCOL_NRPE_SERVICE=([debian]='nagios-nrpe-server' [rhel]='nrpe.service' )
+declare -A REG_MONITORING_PROTOCOL_NRPE_CONFD 
 REG_MONITORING_PROTOCOL_NRPE_CONFD=([debian]='/etc/nagios/nrpe.d/' [rhel]='/etc/nrpe.d/' )
 REG_HOSTNAME="$(hostname -s)-$(date +%s)"
 REG_HOSTALIAS=$(hostname)
@@ -100,6 +104,18 @@ function determine-distro() {
     fi
 }
 
+function prepare-distro() {
+    if [[ "$REG_OS_FAMILY" == 'debian' ]] ; then
+        cat >/etc/apt/sources.list.d/centreon.list <<EOF
+deb https://apt.centreon.com/repository/22.10/ $(lsb_release -sc) main
+#deb https://apt.centreon.com/repository/22.10-testing/ $(lsb_release -sc) main
+#deb https://apt.centreon.com/repository/22.10-unstable/ $(lsb_release -sc) main
+EOF
+        wget -qO- https://apt-key.centreon.com | gpg --dearmor > /etc/apt/trusted.gpg.d/centreon.gpg
+        apt-get update
+    fi
+}
+
 function install() {
     try ${REG_INSTALL_CMD} install -y $*
 }
@@ -152,9 +168,9 @@ EOF
 # Determine distro version
 # Determine install command
 determine-distro
-
+prepare-distro
 # install snmpd
-install curl "${REG_MONITORING_PROTOCOL_NRPE_PACKAGE[$REG_OS_FAMILY]}" centreon-plugin-Operatingsystems-Linux-Local
+install curl "${REG_MONITORING_PROTOCOL_NRPE_PACKAGE[$REG_OS_FAMILY]}" "${REG_MONITORING_LOCAL_PLUGIN[$REG_OS_FAMILY]}"
 
 # configure snmpd
 # * community
@@ -199,7 +215,7 @@ for svc in "${REG_SERVICES_LIST[@]}" ; do
     try curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$TOKEN" -d '{"object": "service", "action": "add", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';'${REG_CMD_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
     try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Svc-'"${svcname}"';nrpecommand;check_svc_'"${svcname}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
     cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
-command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}$' --critical-total-running='1:'
+command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}\$\$' --critical-total-running='1:'
 EOF
 done
 
@@ -217,7 +233,7 @@ for disk in "${REG_DISKS_LIST[@]}" ; do
     EXPECTED_OUTPUT_RE=
     try curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $TOKEN" -d '{"object": "service", "action": "setmacro", "values": "'${REG_HOSTNAME}';Disk-'${disk}';nrpecommand;check_disk_'"${disk}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
     cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
-command[check_disk_${disk}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode storage --filter-mountpoint='^${disk}\$' --warning-usage='80' --critical-usage='90'
+command[check_disk_${disk}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode storage --filter-mountpoint='^${disk}\$\$' --warning-usage='80' --critical-usage='90'
 EOF
 done
 
