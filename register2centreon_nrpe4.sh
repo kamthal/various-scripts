@@ -121,13 +121,13 @@ function install() {
 }
 
 function configure-nrpe() {
-    sed -Ei 's/^allowed_hosts=(.*)$/allowed_hosts=127.0.0.1,::1,'${REG_CENTREON_POLLER_IP:-$REG_CENTREON_CENTRAL_IP}'/' /etc/nagios/nrpe.cfg
-    openssl req -batch -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -keyout /etc/nagios/server.key -out /etc/nagios/server.crt
-    chmod 644 /etc/nagios/server.*
-    mkdir -p /var/lib/centreon/centplugins/
-    chown nagios: /var/lib/centreon/centplugins/
-    sed -Ei 's/^#?ssl_cert_file=.*$/ssl_cert_file=\/etc\/nagios\/server.crt/' /etc/nagios/nrpe.cfg
-    sed -Ei 's/^#?ssl_privatekey_file=.*$/ssl_privatekey_file=\/etc\/nagios\/server.key/' /etc/nagios/nrpe.cfg
+    try sed -Ei 's/^allowed_hosts=(.*)$/allowed_hosts=127.0.0.1,::1,'${REG_CENTREON_POLLER_IP:-$REG_CENTREON_CENTRAL_IP}'/' /etc/nagios/nrpe.cfg
+    try openssl req -batch -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -keyout /etc/nagios/server.key -out /etc/nagios/server.crt
+    try chmod 644 /etc/nagios/server.*
+    try mkdir -p /var/lib/centreon/centplugins/
+    try chown nagios: /var/lib/centreon/centplugins/
+    try sed -Ei 's/^#?ssl_cert_file=.*$/ssl_cert_file=\/etc\/nagios\/server.crt/' /etc/nagios/nrpe.cfg
+    try sed -Ei 's/^#?ssl_privatekey_file=.*$/ssl_privatekey_file=\/etc\/nagios\/server.key/' /etc/nagios/nrpe.cfg
     #This works:
     #/usr/lib/centreon/plugins/centreon_protocol_nrpe.pl --plugin apps::protocols::nrpe::plugin --mode query --custommode nrpe --hostname 192.168.58.126 --command check_fake --ssl-opt="SSL_verify_mode => SSL_VERIFY_NONE"
     cat >"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<'EOF'
