@@ -16,26 +16,22 @@ declare \
     REG_OS_FAMILY=
 # set default values
 
-declare -A \
-    REG_MONITORING_PROTOCOL_NRPE_PACKAGE \
-    REG_MONITORING_LOCAL_PLUGIN \
-    REG_MONITORING_PROTOCOL_NRPE_SERVICE \
-    REG_MONITORING_PROTOCOL_NRPE_CONFD
-
-
-REG_MONITORING_PROTOCOL_NRPE_PACKAGE=(
+declare -A REG_MONITORING_PROTOCOL_NRPE_PACKAGE=(
     [debian]='nagios-nrpe-server'
     [rhel]='nrpe'
 )
-REG_MONITORING_LOCAL_PLUGIN=(
+
+declare -A REG_MONITORING_LOCAL_PLUGIN=(
     [debian]='centreon-plugin-operatingsystems-linux-local'
     [rhel]='centreon-plugin-Operatingsystems-Linux-Local'
 )
-REG_MONITORING_PROTOCOL_NRPE_SERVICE=(
+
+declare -A REG_MONITORING_PROTOCOL_NRPE_SERVICE=(
     [debian]='nagios-nrpe-server'
     [rhel]='nrpe.service'
 )
-REG_MONITORING_PROTOCOL_NRPE_CONFD=(
+
+declare -A REG_MONITORING_PROTOCOL_NRPE_CONFD=(
     [debian]='/etc/nagios/nrpe.d/'
     [rhel]='/etc/nrpe.d/'
 )
@@ -391,15 +387,7 @@ function main {
     # Determine distro version
     # Determine install command
     determine_distro
-    #set -x
     prepare_distro
-    # install snmpd
-    
-    # configure snmpd
-    # * community
-    # * authorized ip
-    # restart snmpd
-    # enable snmpd
     configure_nrpe
     
     # centreon authentication
