@@ -5,14 +5,12 @@ export LC_ALL=C
 
 # get environment variables
 declare -r \
-    log_verbosity="debug" \
+    log_verbosity="info" \
     REG_CENTREON_CENTRAL_IP=192.168.58.121 \
-    REG_CENTREON_CENTRAL_URL="http://${REG_CENTREON_CENTRAL_IP}" \
     REG_CENTREON_CENTRAL_LOGIN=admin \
     REG_CENTREON_CENTRAL_PASSWORD=centreon \
     REG_CENTREON_POLLER_NAME=Central \
-    REG_CENTREON_POLLER_IP=192.168.58.121 \
-    REG_MONITORING_PROTOCOL=NRPE
+    REG_CENTREON_POLLER_IP=192.168.58.121
 
 declare \
     REG_OS_FAMILY=
@@ -44,10 +42,14 @@ REG_MONITORING_PROTOCOL_NRPE_CONFD=(
 
 REG_INSTALL_CMD=
 REG_HOST_TEMPLATE=OS-Linux-NRPE4
-REG_DISK_TEMPLATE=OS-Linux-Disk-NRPE4
 REG_CMD_TEMPLATE=OS-Linux-Generic-Command-NRPE4
 
 function crash {
+    declare -r ret_code=$?
+    echo >&2 "Entering crash($*)"
+    
+    #set +xEe
+    #trap "" ERR HUP INT QUIT TERM
     declare \
         i=0 \
         j \
@@ -65,16 +67,16 @@ function crash {
         i=$((i+1))
     done
     for (( j=${#array_results[@]} - 1 ; j>=0 ; j-- )) ; do
-        reversed_array_results+=("${indents}${array_results[j]}")
+        echo >&2 "${indents}${array_results[j]}"
         indents+="    "
     done
-    for line in "${reversed_array_results[@]}" ; do
-        echo >&2 "$line"
-    done
-    exit 1
+    #for line in "${reversed_array_results[@]}" ; do
+    #    echo >&2 "$line"
+    #done
+    exit $ret_code
 }
 
-trap crash ERR HUP INT QUIT TERM
+trap crash ERR HUP QUIT TERM # INT
 
 function log {
     local log_level="$1"
@@ -194,7 +196,7 @@ EOF
 function install {
     log "debug" "Entering install($*)"
     log "info" "Installing $*"
-    try "" "" ${REG_INSTALL_CMD} install -y "$@"
+    try "" "" "$REG_INSTALL_CMD" install -y "$@"
     log "debug" "Ending install()"
 }
 
@@ -207,14 +209,14 @@ function get_host_name {
 
 function get_host_alias {
     log "debug" "Entering get_host_alias()"
-    echo "$(hostname)"
+    hostname
     log "debug" "Ending get_host_alias()" 
     return 0
 }
 
 function get_host_address {
     log "debug" "Entering get_host_address()"
-    echo "$(hostname -I | awk '{print $NF}')"
+    hostname -I | awk '{print $NF}'
     log "debug" "Ending get_host_address()" 
     return 0
 }
@@ -278,7 +280,7 @@ function apiv1_create_host {
         output=""
         
     [[ "$TRACE" ]] && set -x
-    output="$(curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$token" -d '{"object": "host", "action": "add", "values": "'${host_name}';'${host_alias}';'${host_address}';'${REG_HOST_TEMPLATE}';'${REG_CENTREON_POLLER_NAME}';"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi')"
+    output="$(curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$token" -d '{"object": "host", "action": "add", "values": "'"${host_name}"';'"${host_alias}"';'"${host_address}"';'"${REG_HOST_TEMPLATE}"';'"${REG_CENTREON_POLLER_NAME}"';"}' -X POST 'http://'"${REG_CENTREON_CENTRAL_IP}"'/centreon/api/index.php?action=action&object=centreon_clapi')"
     [[ "$TRACE" ]] && set +x
     if [[ ! "$output" =~ $host_creation_expected_regex ]] ; then
         log "fatal" "Creating host: output '$output' does not match '$host_creation_expected_regex'"
@@ -289,7 +291,7 @@ function apiv1_create_host {
 
     log "info" "Applying the template"
     [[ "$TRACE" ]] && set -x
-    output="$(curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $token" -d '{"object": "host", "action": "applytpl", "values": "'${host_name}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi')"
+    output="$(curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $token" -d '{"object": "host", "action": "applytpl", "values": "'"${host_name}"'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi')"
     [[ "$TRACE" ]] && set +x
     if [[ "$output" != "$apply_tpl_expected_output" ]] ; then
         log "fatal" "Applying template: Output '$output' does not match '$apply_tpl_expected_output'"
@@ -307,7 +309,6 @@ function apiv1_create_service_systemd_svc {
         token="$1" \
         host_name="$2" \
         svc_name="$3"
-    # Define host properties
     declare -r \
         expected_output='{"result":[]}'
     declare \
@@ -343,6 +344,40 @@ EOF
 
 function apiv1_create_service_disk {
     log "debug" "Entering apiv1_create_service_disk($*)"
+    declare -r \
+        token="$1" \
+        host_name="$2" \
+        disk_name="$3"
+    declare -r \
+        expected_setmacro_output='{"result":[]}' \
+        expected_creation_output_regex='\{"result":\[\]\}|"Object already exists"'
+    declare \
+        output=""
+    log "verbose" "Creating the service to monitor the disk"
+    [[ "$TRACE" ]] && set -x
+    output="$(curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$token" -d '{"object": "service", "action": "add", "values": "'"${host_name}"';Disk-'"${disk_name}"';'"${REG_CMD_TEMPLATE}"'"}' -X POST 'http://'"${REG_CENTREON_CENTRAL_IP}"'/centreon/api/index.php?action=action&object=centreon_clapi')"
+    [[ "$TRACE" ]] && set +x
+    if [[ ! "$output" =~ $expected_creation_output_regex ]] ; then
+        log "fatal" "Disk service creation: output '$output' does not match '$expected_creation_output_regex'"
+        return 1
+    else
+        log "verbose" "Service created"
+    fi
+    log "verbose" "Setting the NRPECOMMAND macro"
+    [[ "$TRACE" ]] && set -x
+    output="$(curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $token" -d '{"object": "service", "action": "setmacro", "values": "'"${host_name}"';Disk-'"${disk_name}"';nrpecommand;check_disk_'"${disk_name}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi")"
+    [[ "$TRACE" ]] && set +x
+    if [[ "$output" != "$expected_setmacro_output" ]] ; then
+        log "fatal" "Service NRPECOMMAND macro: output '$output' does not match '$expected_setmacro_output'"
+        return 1
+    else
+        log "verbose" "Service NRPECOMMAND macro succeeded"
+    fi
+    # Add the right command in the NRPE configuration
+    log "verbose" "Adding the right command in the NRPE configuration"
+    cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
+command[check_disk_${disk_name}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode storage --filter-mountpoint='^${disk_name}\$\$' --warning-usage='80' --critical-usage='90'
+EOF
     log "debug" "Ending apiv1_create_service_disk()" 
     return 0
 }
@@ -361,6 +396,7 @@ function main {
     # Determine distro version
     # Determine install command
     determine_distro
+    #set -x
     prepare_distro
     # install snmpd
     
@@ -389,15 +425,8 @@ function main {
     log "info" "Creating the services"
     for svc in "${REG_SERVICES_LIST[@]}" ; do
         svcname="${svc%.service}"
-        log "debug" "$(declare -p svc)"
+        log "verbose" "Creating svc '$svc'"
         apiv1_create_service_systemd_svc "$token" "$host_name" "$svcname"
-        #TRACE=1
-        #try '{"result":[]}' "" curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$token" -d '{"object": "service", "action": "add", "values": "'"$host_name"';Svc-'"$svcname"';'"$REG_CMD_TEMPLATE"'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-        #try '{"result":[]}' "" curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $token" -d '{"object": "service", "action": "setmacro", "values": "'"$host_name"';Svc-'"$svcname"';nrpecommand;check_svc_'"${svcname}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        #TRACE=
-        #cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
-#command[check_svc_${svcname}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode systemd-sc-status --filter-name='^${svc}\$\$' --critical-total-running='1:'
-#EOF
     done
     
     # curl centreon config disks
@@ -409,11 +438,9 @@ function main {
     log "debug" "$(declare -p REG_DISKS_LIST)"
     log "info" "Creating the disks"
     for disk in "${REG_DISKS_LIST[@]}" ; do
-        try "" '\{"result":\[\]\}|"Object already exists"' curl -s --header 'Content-Type: application/json' --header 'centreon-auth-token: '"$token" -d '{"object": "service", "action": "add", "values": "'${host_name}';Disk-'${disk}';'${REG_CMD_TEMPLATE}'"}' -X POST 'http://'${REG_CENTREON_CENTRAL_IP}'/centreon/api/index.php?action=action&object=centreon_clapi'
-        try '{"result":[]}' "" curl -s --header "Content-Type: application/json" --header "centreon-auth-token: $token" -d '{"object": "service", "action": "setmacro", "values": "'${host_name}';Disk-'${disk}';nrpecommand;check_disk_'"${disk}"'"}' -X POST "http://${REG_CENTREON_CENTRAL_IP}/centreon/api/index.php?action=action&object=centreon_clapi"
-        cat >>"${REG_MONITORING_PROTOCOL_NRPE_CONFD[$REG_OS_FAMILY]}/custom-centreon.cfg" <<EOF
-command[check_disk_${disk}]=/usr/lib/centreon/plugins/centreon_linux_local.pl --plugin os::linux::local::plugin --mode storage --filter-mountpoint='^${disk}\$\$' --warning-usage='80' --critical-usage='90'
-EOF
+        log "verbose" "Creating disk '$disk'"
+        apiv1_create_service_disk "$token" "$host_name" "$disk"
+        
     done
     
     # curl centreon config interfaces
@@ -426,6 +453,6 @@ EOF
 
 }
 
-if [[ "$0" == "$BASH_SOURCE" ]] ; then
+if [[ "$0" == "${BASH_SOURCE[0]}" ]] ; then
     main "$@"
 fi
