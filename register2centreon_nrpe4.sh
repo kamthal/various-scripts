@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -Eeo pipefail
+set -eEo pipefail
 export LC_ALL=C
 
 # get environment variables
@@ -47,36 +47,29 @@ REG_CMD_TEMPLATE=OS-Linux-Generic-Command-NRPE4
 function crash {
     declare -r ret_code=$?
     echo >&2 "Entering crash($*)"
-    
-    #set +xEe
-    #trap "" ERR HUP INT QUIT TERM
     declare \
-        i=0 \
+        i=1 \
         j \
         line \
         file \
         func \
         indents="|  " \
-        array_results=() \
-        reversed_array_results=()
+        array_results=()
 
     echo >&2 "Call stack trace:"
-    while read -r line func file < <(caller $i); do
+    while read -r line func file < <(caller $i) ; do
         array_results+=("[$file:$line].$func(): $(sed -n "${line}p" "$file")")
-        #array_results+=("[$file:$line].$func()")
         i=$((i+1))
     done
     for (( j=${#array_results[@]} - 1 ; j>=0 ; j-- )) ; do
         echo >&2 "${indents}${array_results[j]}"
         indents+="    "
     done
-    #for line in "${reversed_array_results[@]}" ; do
-    #    echo >&2 "$line"
-    #done
+    
     exit $ret_code
 }
 
-trap crash ERR HUP QUIT TERM # INT
+trap crash EXIT
 
 function log {
     local log_level="$1"
@@ -135,7 +128,7 @@ function try {
         ret_code
     log "verbose" "Trying: " "$@"
     [[ "$TRACE" ]] && set -x
-    output="$("$@" 2>&1)"
+    output="$("$@")"
     ret_code=$?
     [[ "$TRACE" ]] && set +x
 
@@ -158,13 +151,15 @@ function determine_distro {
     [[ -n "$TRACE" ]] && set -x
     if [[ -f /etc/debian_version ]] ; then
         log "verbose" "System is Debian-based"
-        REG_INSTALL_CMD='apt-get'
+        REG_INSTALL_CMD="apt-get"
+        REG_INSTALL_OPTS="-y"
         REG_OS_FAMILY=debian
         log "debug" "$(declare -p REG_INSTALL_CMD)"
-        try "" "" "$REG_INSTALL_CMD" update
+        try "" "" "$REG_INSTALL_CMD" ${REG_INSTALL_OPTS} update
     elif [[ -f /etc/redhat-release ]] ; then
         log "verbose" "System is RHEL-based"
-        REG_INSTALL_CMD='yum -b'
+        REG_INSTALL_CMD='yum'
+        REG_INSTALL_OPTS="-yb"
         REG_OS_FAMILY=rhel
     else
         log "fatal" "System is unsupported"
@@ -196,7 +191,7 @@ EOF
 function install {
     log "debug" "Entering install($*)"
     log "info" "Installing $*"
-    try "" "" "$REG_INSTALL_CMD" install -y "$@"
+    try "" "" "$REG_INSTALL_CMD" "$REG_INSTALL_OPTS" install "$@"
     log "debug" "Ending install()"
 }
 
@@ -225,7 +220,7 @@ function configure_nrpe {
     log "debug" "Entering configure_nrpe()"
     log "info" "Configuring NRPE"
     try "" "" sed -Ei 's/^allowed_hosts=(.*)$/allowed_hosts=127.0.0.1,::1,'${REG_CENTREON_POLLER_IP:-$REG_CENTREON_CENTRAL_IP}'/' /etc/nagios/nrpe.cfg
-    try "" "" openssl req -batch -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -keyout /etc/nagios/server.key -out /etc/nagios/server.crt
+    try "" "" openssl req -batch -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -keyout /etc/nagios/server.key -out /etc/nagios/server.crt 2>/dev/null
     try "" "" chmod 644 /etc/nagios/server.*
     try "" "" mkdir -p /var/lib/centreon/centplugins/
     try "" "" chown nagios: /var/lib/centreon/centplugins/
