@@ -1,0 +1,12 @@
+[
+    {
+        "name": "toto",
+        "alias": "titi",
+        "address": "localhost"
+    },
+    {
+        "name": "tutu",
+        "alias": "tata",
+        "address": "127.0.0.1"
+    }
+]
