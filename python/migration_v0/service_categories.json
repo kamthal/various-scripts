@@ -1,0 +1,14 @@
+[
+    {
+        "name": "Système",
+        "alias": "Indicateurs système"
+    },
+    {
+        "name": "Applications",
+        "alias": "Applications"
+    },
+    {
+        "name": "DB",
+        "alias": "Bases de données"
+    }
+]

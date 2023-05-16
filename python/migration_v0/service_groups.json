@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Centreon",
+        "alias": "Services de supervision"
+    },
+    {
+        "name": "Qualité réseau",
+        "alias": "Ensemble des services Ping"
+    }
+]

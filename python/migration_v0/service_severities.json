@@ -1,0 +1,22 @@
+[
+    {
+        "name": "P0",
+        "alias": "Bloquant",
+        "level": 0
+    },
+    {
+        "name": "P1",
+        "alias": "Critique",
+        "level": 1
+    },
+    {
+        "name": "P2",
+        "alias": "Majeur",
+        "level": 2
+    },
+    {
+        "name": "P3",
+        "alias": "Mineur",
+        "level": 3
+    }
+]

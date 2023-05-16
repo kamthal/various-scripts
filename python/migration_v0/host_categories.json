@@ -1,0 +1,14 @@
+[
+    {
+        "name": "Monitoring",
+        "alias": "Serveurs de supervision"
+    },
+    {
+        "name": "Réseau",
+        "alias": "Équipements réseau"
+    },
+    {
+        "name": "DB",
+        "alias": "Serveurs de bases de données"
+    }
+]

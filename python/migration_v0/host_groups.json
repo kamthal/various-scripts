@@ -1,0 +1,14 @@
+[
+    {
+        "name": "site-Paris",
+        "alias": "Site parisien"
+    },
+    {
+        "name": "site-Toronto",
+        "alias": "Site canadien"
+    },
+    {
+        "name": "site-Toulouse",
+        "alias": "Site toulousain"
+    }
+]
