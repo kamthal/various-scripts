@@ -3,11 +3,10 @@ import pathlib
 import requests
 
 baseUrl = 'http://192.168.59.134/centreon/api/latest'
-login = 'admin'
-password = 'centreon'
-
 epAuth = '/login'
 
+login = 'admin'
+password = 'centreon'
 json_credentials = {
     "security": {
         "credentials": {
@@ -19,7 +18,7 @@ json_credentials = {
 
 response = requests.post(baseUrl+epAuth, json=json_credentials)
 body = json.loads(str(response.content.decode()))
-print(str(body['security']['token']))
+authToken = str(body['security']['token'])
 
 
 fh = open(
@@ -34,7 +33,9 @@ data_input = json.loads(json_input)
 
 for hg in data_input:
     print(json.dumps(hg))
-    response = requests.post(baseUrl + '/configuration/hosts/groups', headers={"X-AUTH-TOKEN": str(body['security']['token'])}, json=json.dumps(hg))
+    post_data=str(json.dumps(hg))
+    post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "*/*"}
+    response = requests.post(baseUrl + '/configuration/hosts/groups', headers=post_headers, json=hg)
     body = json.loads(str(response.content.decode()))
     print(str(body))
 
