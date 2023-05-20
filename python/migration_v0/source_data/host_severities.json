@@ -2,21 +2,25 @@
     {
         "name": "P0",
         "alias": "Bloquant",
+        "icon_id": 1,
         "level": 0
     },
     {
         "name": "P1",
         "alias": "Critique",
+        "icon_id": 1,
         "level": 1
     },
     {
         "name": "P2",
         "alias": "Majeur",
+        "icon_id": 1,
         "level": 2
     },
     {
         "name": "P3",
         "alias": "Mineur",
+        "icon_id": 1,
         "level": 3
     }
 ]

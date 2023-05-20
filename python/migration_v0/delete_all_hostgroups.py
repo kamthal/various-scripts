@@ -29,3 +29,12 @@ for hg in hGroups:
     id = hg["id"]
     print("%s" % id )
     requests.delete(baseUrl + '/configuration/hosts/groups/' + str(id) , headers=post_headers)
+response = requests.get(baseUrl + '/configuration/hosts/categories', headers=post_headers)
+#body = json.loads(str(response.content.decode()))
+dec = response.content.decode()
+body = json.loads(dec)
+hCategories = body["result"]
+for hc in hCategories:
+    id = hc["id"]
+    print("%s" % id )
+    requests.delete(baseUrl + '/configuration/hosts/categories/' + str(id) , headers=post_headers)
