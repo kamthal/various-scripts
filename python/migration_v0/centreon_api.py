@@ -4,6 +4,16 @@ import logging
 from pathlib import Path
 import sys
 
+def load_file(filePath):
+    logging.debug('load_file() starting')
+
+    fh = open(filePath, "r")
+    file_content = fh.read()
+    fh.close()
+
+    logging.debug('load_file() ending')
+    return(file_content)
+
 def cv2api_authenticate(serverAddress: str, userName: str = "admin", userPassword: str = "centreon", customUri: str = "centreon", serverProto: str = "http") -> str:
     logging.debug("cv2api_authenticate() starting")
 
@@ -48,59 +58,68 @@ def cv2api_createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, c
     return(str(body))
 
 def cv2api_createHostGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/hosts/groups', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/hosts/groups', authToken, jsonData)
 
 def cv2api_createHostCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/hosts/categories', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/hosts/categories', authToken, jsonData)
 
 def cv2api_createHostSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/hosts/severities', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/hosts/severities', authToken, jsonData)
 
 def cv2api_createServiceGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/services/groups', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/services/groups', authToken, jsonData)
 
 def cv2api_createServiceCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/services/categories', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/services/categories', authToken, jsonData)
 
 def cv2api_createServiceSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric('192.168.59.134', '/configuration/services/severities', authToken, jsonData)
+    return cv2api_createGeneric(serverAddress, '/configuration/services/severities', authToken, jsonData)
 
 def main():
     logging.debug('main() starting')
+
+    logging.info("Reading config file")
+    config_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/config.json"))
+    centreonServer = config_data['centreonServer']
+    centreonCustomUri = config_data['centreonCustomUri']
+    centreonProto = config_data['centreonProto']
+    centreonLogin = config_data['centreonLogin']
+    centreonPassword = config_data['centreonPassword']
+
     logging.info("Authenticating")
-    myToken = cv2api_authenticate('192.168.59.134')
+    myToken = cv2api_authenticate(serverAddress=centreonServer, userName=centreonLogin, userPassword=centreonPassword, customUri=centreonCustomUri, serverProto=centreonProto)
 
-    logging.info("Managing host groups")
-    hg_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_groups.json"))
-    for hg in hg_data:
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_groups.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " host groups")
+    for obj in arrayOfObjs:
         #logging.debug(json.dumps(hg))
-        cv2api_createHostGroup('192.168.59.134', hg, myToken)
+        cv2api_createHostGroup(centreonServer, obj, myToken)
     
-    logging.info("Managing host categories")
-    hc_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_categories.json"))
-    for hc in hc_data:
-        cv2api_createHostCategory('192.168.59.134', hc, myToken)
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_categories.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " host categories")
+    for obj in arrayOfObjs:
+        cv2api_createHostCategory(centreonServer, obj, myToken)
     
-    logging.info("Managing host severities")
-    hs_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_severities.json"))
-    for hs in hs_data:
-        cv2api_createHostSeverity('192.168.59.134', hs, myToken)
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_severities.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " host severities")
+    for obj in arrayOfObjs:
+        cv2api_createHostSeverity(centreonServer, obj, myToken)
 
-    logging.info("Managing service groups")
-    hg_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_groups.json"))
-    for hg in hg_data:
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_groups.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " service groups")
+    for obj in arrayOfObjs:
         #logging.debug(json.dumps(hg))
-        cv2api_createServiceGroup('192.168.59.134', hg, myToken)
+        cv2api_createServiceGroup(centreonServer, obj, myToken)
     
-    logging.info("Managing service categories")
-    hc_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_categories.json"))
-    for hc in hc_data:
-        cv2api_createServiceCategory('192.168.59.134', hc, myToken)
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_categories.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " service categories")
+    for obj in arrayOfObjs:
+        cv2api_createServiceCategory(centreonServer, obj, myToken)
     
-    logging.info("Managing service severities")
-    hs_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_severities.json"))
-    for hs in hs_data:
-        cv2api_createServiceSeverity('192.168.59.134', hs, myToken)
+    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_severities.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " service severities")
+    for obj in arrayOfObjs:
+        cv2api_createServiceSeverity(centreonServer, obj, myToken)
 
     logging.debug('main() ending')
 

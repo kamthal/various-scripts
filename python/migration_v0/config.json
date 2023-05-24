@@ -1,0 +1,7 @@
+{
+    "centreonServer": "127.0.0.1:8000",
+    "centreonCustomUri": "/centreon",
+    "centreonProto": "http",
+    "centreonLogin": "admin",
+    "centreonPassword": "Centreon!2021"
+}
