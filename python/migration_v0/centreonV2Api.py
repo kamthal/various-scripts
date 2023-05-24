@@ -74,6 +74,12 @@ def getHostSeverities(serverAddress: str, authToken: str, customUri: str = "cent
     logging.debug('getHostSeverities() starting')
     return(body)
 
+def getHostTemplates(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getHostTemplates() starting')
+    body = getGeneric(serverAddress, '/configuration/hosts/templates', authToken=authToken)
+    logging.debug('getHostTemplates() starting')
+    return(body)
+
 def getServiceGroups(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
     logging.debug('getServiceGroup() starting')
     body = getGeneric(serverAddress, '/configuration/services/groups', authToken=authToken)
@@ -91,6 +97,41 @@ def getServiceSeverities(serverAddress: str, authToken: str, customUri: str = "c
     body = getGeneric(serverAddress, '/configuration/services/severities', authToken=authToken)
     logging.debug('getServiceSeveritie() starting')
     return(body)
+
+def createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug("createGeneric() starting")
+    post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
+    fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
+    response = requests.post(fullUrl, headers=post_headers, json=jsonData)
+    body = json.loads(str(response.content.decode()))
+    
+    match str(response.status_code):
+        case '200':
+            logging.info("API call succeeded. Response: " + str(body))
+        case '409':
+            logging.warning("API call failed, object probably already exists. Response: " + str(body))
+        case '400':
+            logging.error("API call failed. Response: " + str(body))
+    logging.debug("createGeneric() ending")
+    return(str(body))
+
+def createHostGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/groups', authToken, jsonData)
+
+def createHostCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/categories', authToken, jsonData)
+
+def createHostSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/severities', authToken, jsonData)
+
+def createServiceGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/groups', authToken, jsonData)
+
+def createServiceCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/categories', authToken, jsonData)
+
+def createServiceSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/severities', authToken, jsonData)
 
 def deleteGeneric(serverAddress: str, endpointUrl, authToken, idToDelete:int, customUri: str = "centreon", serverProto: str = "http"):
     logging.debug("deleteGeneric() starting")
@@ -150,38 +191,8 @@ def deleteServiceSeverity(serverAddress: str, idToDelete: int, authToken, custom
     logging.debug('deleteServiceSeverity() ending')
     return body
 
-def createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, customUri: str = "centreon", serverProto: str = "http"):
-    logging.debug("createGeneric() starting")
-    post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
-    fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
-    response = requests.post(fullUrl, headers=post_headers, json=jsonData)
-    body = json.loads(str(response.content.decode()))
-    
-    match str(response.status_code):
-        case '200':
-            logging.info("API call succeeded. Response: " + str(body))
-        case '409':
-            logging.warning("API call failed, object probably already exists. Response: " + str(body))
-        case '400':
-            logging.error("API call failed. Response: " + str(body))
-    logging.debug("createGeneric() ending")
-    return(str(body))
-
-def createHostGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/hosts/groups', authToken, jsonData)
-
-def createHostCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/hosts/categories', authToken, jsonData)
-
-def createHostSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/hosts/severities', authToken, jsonData)
-
-def createServiceGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/services/groups', authToken, jsonData)
-
-def createServiceCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/services/categories', authToken, jsonData)
-
-def createServiceSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return createGeneric(serverAddress, '/configuration/services/severities', authToken, jsonData)
-
+def deleteHostTemplate(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteHostTemplate() starting - deleting host template ' + str(idToDelete))
+    body = deleteGeneric(serverAddress, '/configuration/hosts/templates', authToken, idToDelete=idToDelete)
+    logging.debug('deleteHostTemplate() ending')
+    return body
