@@ -1,7 +1,6 @@
 import json
 import requests
 import logging
-from pathlib import Path
 import sys
 
 def load_file(filePath):
@@ -14,8 +13,8 @@ def load_file(filePath):
     logging.debug('load_file() ending')
     return(file_content)
 
-def cv2api_authenticate(serverAddress: str, userName: str = "admin", userPassword: str = "centreon", customUri: str = "centreon", serverProto: str = "http") -> str:
-    logging.debug("cv2api_authenticate() starting")
+def authenticate(serverAddress: str, userName: str = "admin", userPassword: str = "centreon", customUri: str = "centreon", serverProto: str = "http") -> str:
+    logging.debug("authenticate() starting")
 
     endpointAuth = serverProto + "://" + serverAddress + "/" + customUri + "/api/latest/login"
     json_credentials = {
@@ -28,7 +27,7 @@ def cv2api_authenticate(serverAddress: str, userName: str = "admin", userPasswor
     }
     response = requests.post(endpointAuth, json=json_credentials)
     body = json.loads(str(response.content.decode()))
-    logging.debug("cv2api_authenticate() ending")
+    logging.debug("authenticate() ending")
     return(str(body['security']['token']))
 
 def load_file(filePath):
@@ -39,9 +38,120 @@ def load_file(filePath):
     file_content = fh.read()
     fh.close()
     return(file_content)
+
+def getGeneric(serverAddress: str, endpointUrl, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug("getGeneric() starting")
+    post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
+    fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
+    response = requests.get(fullUrl, headers=post_headers)
+    body = json.loads(str(response.content.decode()))
     
-def cv2api_createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, customUri: str = "centreon", serverProto: str = "http"):
-    logging.debug("cv2api_createGeneric() starting")
+    match str(response.status_code):
+        case '200' | '201':
+            logging.debug("API call succeeded. Response: " + str(body))
+        case '409':
+            logging.warning("API call failed. Response: " + str(body))
+        case '400':
+            logging.error("API call failed. Response: " + str(body))
+    logging.debug("getGeneric() ending")
+    return(body)
+
+def getHostGroups(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getHostGroups() starting')
+    body = getGeneric(serverAddress, '/configuration/hosts/groups', authToken=authToken)
+    logging.debug('getHostGroups() starting')
+    return(body)
+
+def getHostCategories(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getHostCategories() starting')
+    body = getGeneric(serverAddress, '/configuration/hosts/categories', authToken=authToken)
+    logging.debug('getHostCategories() starting')
+    return(body)
+
+def getHostSeverities(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getHostSeverities() starting')
+    body = getGeneric(serverAddress, '/configuration/hosts/severities', authToken=authToken)
+    logging.debug('getHostSeverities() starting')
+    return(body)
+
+def getServiceGroups(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getServiceGroup() starting')
+    body = getGeneric(serverAddress, '/configuration/services/groups', authToken=authToken)
+    logging.debug('getServiceGroup() starting')
+    return(body)
+
+def getServiceCategories(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getServiceCategorie() starting')
+    body = getGeneric(serverAddress, '/configuration/services/categories', authToken=authToken)
+    logging.debug('getServiceCategorie() starting')
+    return(body)
+
+def getServiceSeverities(serverAddress: str, authToken: str, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('getServiceSeveritie() starting')
+    body = getGeneric(serverAddress, '/configuration/services/severities', authToken=authToken)
+    logging.debug('getServiceSeveritie() starting')
+    return(body)
+
+def deleteGeneric(serverAddress: str, endpointUrl, authToken, idToDelete:int, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug("deleteGeneric() starting")
+    post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
+    fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl + "/" + str(idToDelete)
+    logging.debug("deleteGeneric() deleting on endpoint '" + endpointUrl + "' id '" + str(idToDelete) + "'")
+    response = requests.delete(fullUrl, headers=post_headers)
+    if response.status_code != 204:
+        body = json.loads(str(response.content.decode()))
+    else:
+        body = "empty"
+    
+    match str(response.status_code):
+        case '204':
+            logging.debug("API call succeeded.")
+        case '409':
+            logging.warning("API call failed, object probably already deleted. Response: " + str(body))
+        case '400'|'404':
+            logging.error("API call failed. Response: " + str(body))
+    logging.debug("deleteGeneric() ending")
+    return(str(body))
+
+def deleteHostGroup(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteHostGroup() starting')
+    logging.debug('deleteHostGroup() deleting host group ' + str(idToDelete))
+    body = deleteGeneric(serverAddress, '/configuration/hosts/groups', authToken, idToDelete=idToDelete)
+    logging.debug('deleteHostGroup() ending')
+    return body
+
+def deleteHostCategory(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteHostCategory() starting')
+    body = deleteGeneric(serverAddress, '/configuration/hosts/categories', authToken=authToken, idToDelete=idToDelete)
+    logging.debug('deleteHostCategory() ending')
+    return body
+
+def deleteHostSeverity(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteHostCategory() starting')
+    body = deleteGeneric(serverAddress, '/configuration/hosts/severities', authToken=authToken, idToDelete=idToDelete)
+    logging.debug('deleteHostCategory() ending')
+    return body
+
+def deleteServiceGroup(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteServiceGroup() starting')
+    body = deleteGeneric(serverAddress, '/configuration/services/groups', authToken=authToken, idToDelete=idToDelete)
+    logging.debug('deleteServiceGroup() ending')
+    return body
+
+def deleteServiceCategory(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteServiceCategory() starting')
+    body = deleteGeneric(serverAddress, '/configuration/services/categories', authToken=authToken, idToDelete=idToDelete)
+    logging.debug('deleteServiceCategory() ending')
+    return body
+
+def deleteServiceSeverity(serverAddress: str, idToDelete: int, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug('deleteServiceSeverity() starting')
+    body = deleteGeneric(serverAddress, '/configuration/services/severities', authToken=authToken, idToDelete=idToDelete)
+    logging.debug('deleteServiceSeverity() ending')
+    return body
+
+def createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, customUri: str = "centreon", serverProto: str = "http"):
+    logging.debug("createGeneric() starting")
     post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
     fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
     response = requests.post(fullUrl, headers=post_headers, json=jsonData)
@@ -54,76 +164,24 @@ def cv2api_createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, c
             logging.warning("API call failed, object probably already exists. Response: " + str(body))
         case '400':
             logging.error("API call failed. Response: " + str(body))
-    logging.debug("cv2api_createGeneric() ending")
+    logging.debug("createGeneric() ending")
     return(str(body))
 
-def cv2api_createHostGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/hosts/groups', authToken, jsonData)
+def createHostGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/groups', authToken, jsonData)
 
-def cv2api_createHostCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/hosts/categories', authToken, jsonData)
+def createHostCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/categories', authToken, jsonData)
 
-def cv2api_createHostSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/hosts/severities', authToken, jsonData)
+def createHostSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/hosts/severities', authToken, jsonData)
 
-def cv2api_createServiceGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/services/groups', authToken, jsonData)
+def createServiceGroup(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/groups', authToken, jsonData)
 
-def cv2api_createServiceCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/services/categories', authToken, jsonData)
+def createServiceCategory(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/categories', authToken, jsonData)
 
-def cv2api_createServiceSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
-    return cv2api_createGeneric(serverAddress, '/configuration/services/severities', authToken, jsonData)
+def createServiceSeverity(serverAddress: str, jsonData, authToken, customUri: str = "centreon", serverProto: str = "http"):
+    return createGeneric(serverAddress, '/configuration/services/severities', authToken, jsonData)
 
-def main():
-    logging.debug('main() starting')
-
-    logging.info("Reading config file")
-    config_data = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/config.json"))
-    centreonServer = config_data['centreonServer']
-    centreonCustomUri = config_data['centreonCustomUri']
-    centreonProto = config_data['centreonProto']
-    centreonLogin = config_data['centreonLogin']
-    centreonPassword = config_data['centreonPassword']
-
-    logging.info("Authenticating")
-    myToken = cv2api_authenticate(serverAddress=centreonServer, userName=centreonLogin, userPassword=centreonPassword, customUri=centreonCustomUri, serverProto=centreonProto)
-
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_groups.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " host groups")
-    for obj in arrayOfObjs:
-        #logging.debug(json.dumps(hg))
-        cv2api_createHostGroup(centreonServer, obj, myToken)
-    
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_categories.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " host categories")
-    for obj in arrayOfObjs:
-        cv2api_createHostCategory(centreonServer, obj, myToken)
-    
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_severities.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " host severities")
-    for obj in arrayOfObjs:
-        cv2api_createHostSeverity(centreonServer, obj, myToken)
-
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_groups.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " service groups")
-    for obj in arrayOfObjs:
-        #logging.debug(json.dumps(hg))
-        cv2api_createServiceGroup(centreonServer, obj, myToken)
-    
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_categories.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " service categories")
-    for obj in arrayOfObjs:
-        cv2api_createServiceCategory(centreonServer, obj, myToken)
-    
-    arrayOfObjs = json.loads(load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_severities.json"))
-    logging.info("Creating " + str(len(arrayOfObjs)) + " service severities")
-    for obj in arrayOfObjs:
-        cv2api_createServiceSeverity(centreonServer, obj, myToken)
-
-    logging.debug('main() ending')
-
-logging.basicConfig(encoding='utf-8', level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
-logging.info('Script starting')
-main()
-logging.info('Script ending')
