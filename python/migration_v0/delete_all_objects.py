@@ -42,6 +42,12 @@ def main():
         for obj in arrayOfObjs:
             centreonV2Api.deleteHostSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
+    # Delete all host templates
+    while (len(arrayOfObjs := centreonV2Api.getHostTemplates(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " host templates")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteHostTemplate(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+
     # Delete all service groups
     while (len(arrayOfObjs := centreonV2Api.getServiceGroups(serverAddress=centreonServer, authToken=myToken)["result"])):
         logging.info("Deleting " + str(len(arrayOfObjs)) + " service groups")
@@ -59,6 +65,12 @@ def main():
         logging.info("Deleting " + str(len(arrayOfObjs)) + " service severities")
         for obj in arrayOfObjs:
             centreonV2Api.deleteServiceSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+
+    # Delete all service templates
+    while (len(arrayOfObjs := centreonV2Api.getServiceTemplates(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " service templates")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteServiceTemplate(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     logging.debug('main() ending')
 

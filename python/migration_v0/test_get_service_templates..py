@@ -25,12 +25,12 @@ def main():
     myToken = centreonV2Api.authenticate(serverAddress=centreonServer, userName=centreonLogin, userPassword=centreonPassword, customUri=centreonCustomUri, serverProto=centreonProto)
     
     # Delete all host groups
-    arrayOfObjs = centreonV2Api.getHostTemplates(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " host templates")
-    """for obj in arrayOfObjs:
-        centreonV2Api.deleteHostTemplate(centreonServer, authToken=myToken, idToDelete=obj["id"])"""
+    arrayOfObjs = centreonV2Api.getServiceTemplates(serverAddress=centreonServer, authToken=myToken)["result"]
+    logging.info("Deleting " + str(len(arrayOfObjs)) + " service templates")
+    for obj in arrayOfObjs:
+        centreonV2Api.deleteServiceTemplate(centreonServer, authToken=myToken, idToDelete=obj["id"])
 
-    fh = open(str(Path(__file__).parent.resolve()) + "/templates.json", "w")
+    fh = open(str(Path(__file__).parent.resolve()) + "/service_templates.json", "w")
     fh.write(str(json.dumps(arrayOfObjs, skipkeys=True, sort_keys=True, indent=True)))
     fh.close()
 

@@ -21,7 +21,6 @@ def main():
     arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_groups.json"))
     logging.info("Creating " + str(len(arrayOfObjs)) + " host groups")
     for obj in arrayOfObjs:
-        #logging.debug(json.dumps(hg))
         centreonV2Api.createHostGroup(centreonServer, obj, myToken)
     
     arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_categories.json"))
@@ -34,10 +33,14 @@ def main():
     for obj in arrayOfObjs:
         centreonV2Api.createHostSeverity(centreonServer, obj, myToken)
 
+    arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_templates.json"))
+    logging.info("Creating " + str(len(arrayOfObjs)) + " host templates")
+    for obj in arrayOfObjs:
+        centreonV2Api.createHostTemplate(centreonServer, obj, myToken)
+
     arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_groups.json"))
     logging.info("Creating " + str(len(arrayOfObjs)) + " service groups")
     for obj in arrayOfObjs:
-        #logging.debug(json.dumps(hg))
         centreonV2Api.createServiceGroup(centreonServer, obj, myToken)
     
     arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_categories.json"))
