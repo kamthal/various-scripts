@@ -37,7 +37,7 @@ def main():
     logging.debug('main() ending')
 
 
-logging.basicConfig(encoding='utf-8', level=logging.DEBUG, format='[%(asctime)s][%(levelname)s] %(message)s')
+logging.basicConfig(encoding='utf-8', level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
 logging.info('Script starting')
 main()
 logging.info('Script ending')
