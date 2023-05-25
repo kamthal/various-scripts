@@ -25,40 +25,40 @@ def main():
     myToken = centreonV2Api.authenticate(serverAddress=centreonServer, userName=centreonLogin, userPassword=centreonPassword, customUri=centreonCustomUri, serverProto=centreonProto)
     
     # Delete all host groups
-    arrayOfObjs = centreonV2Api.getHostGroups(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " host groups")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteHostGroup(centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getHostGroups(serverAddress=centreonServer, authToken=myToken)["result"]) > 0):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " host groups")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteHostGroup(centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     # Delete all host categories
-    arrayOfObjs = centreonV2Api.getHostCategories(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " host categories")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteHostCategory(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getHostCategories(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " host categories")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteHostCategory(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     # Delete all host severities
-    arrayOfObjs = centreonV2Api.getHostSeverities(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " host severities")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteHostSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getHostSeverities(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " host severities")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteHostSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     # Delete all service groups
-    arrayOfObjs = centreonV2Api.getServiceGroups(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " service groups")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteServiceGroup(centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getServiceGroups(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " service groups")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteServiceGroup(centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     # Delete all service categories
-    arrayOfObjs = centreonV2Api.getServiceCategories(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " service categories")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteServiceCategory(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getServiceCategories(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " service categories")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteServiceCategory(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     # Delete all service severities
-    arrayOfObjs = centreonV2Api.getServiceSeverities(serverAddress=centreonServer, authToken=myToken)["result"]
-    logging.info("Deleting " + str(len(arrayOfObjs)) + " service severities")
-    for obj in arrayOfObjs:
-        centreonV2Api.deleteServiceSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
+    while (len(arrayOfObjs := centreonV2Api.getServiceSeverities(serverAddress=centreonServer, authToken=myToken)["result"])):
+        logging.info("Deleting " + str(len(arrayOfObjs)) + " service severities")
+        for obj in arrayOfObjs:
+            centreonV2Api.deleteServiceSeverity(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
     logging.debug('main() ending')
 
