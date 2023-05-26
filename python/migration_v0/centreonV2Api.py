@@ -3,6 +3,16 @@ import requests
 import logging
 import sys
 
+perfTrace = {
+    "auth": {},
+    "get": {},
+    "post": {},
+    "delete": {}
+}
+    #"""get": {},
+    #"post": {},
+    #"delete": {}"""
+
 def load_file(filePath):
     logging.debug('load_file() starting')
 
@@ -26,6 +36,7 @@ def authenticate(serverAddress: str, userName: str = "admin", userPassword: str 
         }
     }
     response = requests.post(endpointAuth, json=json_credentials)
+    addPerfTrace(method='auth', endpoint='/login', elapsedTime=response.elapsed.microseconds)
     body = json.loads(str(response.content.decode()))
     logging.debug("authenticate() ending")
     return(str(body['security']['token']))
@@ -44,6 +55,7 @@ def getGeneric(serverAddress: str, endpointUrl, authToken, customUri: str = "cen
     post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
     fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
     response = requests.get(fullUrl, headers=post_headers)
+    addPerfTrace(method='get', endpoint=endpointUrl, elapsedTime=response.elapsed.microseconds)
     body = json.loads(str(response.content.decode()))
     
     match str(response.status_code):
@@ -109,6 +121,8 @@ def createGeneric(serverAddress: str, endpointUrl, authToken, jsonData, customUr
     post_headers = {"X-AUTH-TOKEN": authToken, "Accept": "text/json"}
     fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl
     response = requests.post(fullUrl, headers=post_headers, json=jsonData)
+    addPerfTrace(method='post', endpoint=endpointUrl, elapsedTime=response.elapsed.microseconds)
+
     body = json.loads(str(response.content.decode()))
     
     match str(response.status_code):
@@ -163,6 +177,8 @@ def deleteGeneric(serverAddress: str, endpointUrl, authToken, idToDelete:int, cu
     fullUrl = serverProto + "://" + serverAddress + "/" + customUri + '/api/latest' + endpointUrl + "/" + str(idToDelete)
     logging.debug("deleteGeneric() deleting on endpoint '" + endpointUrl + "' id '" + str(idToDelete) + "'")
     response = requests.delete(fullUrl, headers=post_headers)
+    addPerfTrace(method='delete', endpoint=endpointUrl, elapsedTime=response.elapsed.microseconds)
+
     if response.status_code != 204:
         body = json.loads(str(response.content.decode()))
     else:
@@ -226,3 +242,24 @@ def deleteServiceTemplate(serverAddress: str, idToDelete: int, authToken, custom
     body = deleteGeneric(serverAddress, '/configuration/services/templates', authToken, idToDelete=idToDelete)
     logging.debug('deleteServiceTemplate() ending')
     return body
+
+def addPerfTrace(method, endpoint, elapsedTime):
+    logging.debug("addPerfTrace() starting")
+
+    try:
+        getattr(perfTrace[method], endpoint)
+    except Exception:
+        perfTrace[method][endpoint] = []
+    perfTrace[method][endpoint] += [elapsedTime]
+
+    logging.debug("addPerfTrace() ending")
+
+def printPerfStats():
+    logging.debug('printPerfStats() starting')
+    print("| Method | Endpoint                           | duration |")
+    print("| ------ | ---------------------------------- | -------- |")
+    for method in perfTrace:
+        for endPoint in perfTrace[method]:
+            avg = sum(perfTrace[method][endPoint]) / len(perfTrace[method][endPoint])
+            print("| {} | {} | {} ms |".format(method, endPoint, avg/1000))
+    logging.debug('printPerfStats() ending')

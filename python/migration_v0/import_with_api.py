@@ -33,10 +33,10 @@ def main():
     for obj in arrayOfObjs:
         centreonV2Api.createHostSeverity(centreonServer, obj, myToken)
 
-    arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_templates.json"))
+    """arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/host_templates.json"))
     logging.info("Creating " + str(len(arrayOfObjs)) + " host templates")
     for obj in arrayOfObjs:
-        centreonV2Api.createHostTemplate(centreonServer, obj, myToken)
+        centreonV2Api.createHostTemplate(centreonServer, obj, myToken)"""
 
     arrayOfObjs = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/source_data/service_groups.json"))
     logging.info("Creating " + str(len(arrayOfObjs)) + " service groups")
@@ -53,6 +53,7 @@ def main():
     for obj in arrayOfObjs:
         centreonV2Api.createServiceSeverity(centreonServer, obj, myToken)
 
+    centreonV2Api.printPerfStats()
     logging.debug('main() ending')
 
 logging.basicConfig(encoding='utf-8', level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')

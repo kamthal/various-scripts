@@ -6,11 +6,6 @@ import centreonV2Api
 
 def main():
     logging.debug('main() starting')
-    """baseUrl = 'http://192.168.59.134/centreon/api/latest'
-    epAuth = '/login'
-    centreonServer = '192.168.59.134'
-    centreonLogin = 'admin'
-    centreonPassword = 'centreon'"""
 
     logging.info("Reading config file")
     config_data = json.loads(centreonV2Api.load_file(str(Path(__file__).parent.resolve()) + "/config.json"))
@@ -21,7 +16,6 @@ def main():
     centreonPassword = config_data['centreonPassword']
 
     logging.info("Authenticating")
-
     myToken = centreonV2Api.authenticate(serverAddress=centreonServer, userName=centreonLogin, userPassword=centreonPassword, customUri=centreonCustomUri, serverProto=centreonProto)
     
     # Delete all host groups
@@ -72,6 +66,7 @@ def main():
         for obj in arrayOfObjs:
             centreonV2Api.deleteServiceTemplate(serverAddress=centreonServer, authToken=myToken, idToDelete=obj["id"])
 
+    centreonV2Api.printPerfStats()
     logging.debug('main() ending')
 
 
